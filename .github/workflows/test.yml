@@ -8,9 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+      - uses: actions/checkout@v4
 
       - name: Install Python3
         uses: actions/setup-python@v5
