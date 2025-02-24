@@ -13,23 +13,23 @@ It offers a user-friendly interface for:
 * An intuitive :code:`Cell` type that can hold multiple data types and metadata.
 * A collection of useful :code:`Cell`- and :code:`Triangle`-level functionality, including summarizing, aggregating, extending, filtering, and bootstrapping.
 
-Check out the `full documentation <https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/?badge=latest>`_.
+Check out the `full documentation <https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/?badge=latest>`_.
 
 If you're new to Bermuda, take a look at the 
-`Quick Start <https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/quick-start.html>`_
+`Quick Start <https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/quick-start.html>`_
 guide
 for a brief overview of its functionality, or the
-`User Guide <https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/user-guide/index.html>`_ 
+`User Guide <https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/user-guide/index.html>`_ 
 for a more complete explanation
 of Bermuda's design decisions, insurance triangles, and Bermuda's overall architecture.
 The 
-`Tutorials <https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/tutorials/index.html>`_ 
+`Tutorials <https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/tutorials/index.html>`_ 
 section includes common usage
 patterns.
 
 If you're interested in contributing to Bermuda,
 take a look at our
-`Developer Guide <https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/developer-guide/index.html>`_.
+`Developer Guide <https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/developer-guide/index.html>`_.
 
 Installation
 -------------
@@ -52,11 +52,11 @@ Docs:
 
     python3.10 -m pip install 'bermuda[docs]'
 
-.. |build-status| image:: https://github.com/LedgerInvesting/bermuda/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/LedgerInvesting/bermuda/blob/main/.github/workflows/test.yml
+.. |build-status| image:: https://github.com/LedgerInvesting/bermuda-ledger/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/LedgerInvesting/bermuda-ledger/blob/main/.github/workflows/test.yml
 
 .. |ruff| image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
     :target: https://github.com/astral-sh/ruff
 
-.. |docs| image:: https://readthedocs.com/projects/ledger-investing-bermuda/badge/?version=latest
-    :target: https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/?badge=latest
+.. |docs| image:: https://readthedocs.com/projects/ledger-investing-bermuda-ledger/badge/?version=latest
+    :target: https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/?badge=latest
