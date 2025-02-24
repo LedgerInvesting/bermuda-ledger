@@ -1,0 +1,30 @@
+name: Tag and Release
+permissions:
+  contents: write
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with: 
+          token: ${{ secrets.BERMUDA_CI }}
+
+      - name: Get Version Tag
+        id: get_tag
+        run: echo "::set-output name=VERSION::v$(grep '__version__' bermuda/__about__.py | cut -d '"' -f2)"
+
+      - name: Bump version and push tag
+        uses: anothrNick/github-tag-action@1.36.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.BERMUDA_CI }}
+          CUSTOM_TAG: ${{ steps.get_tag.outputs.VERSION }}
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.get_tag.outputs.VERSION }}
+          name: Release ${{ steps.get_tag.outputs.VERSION }}

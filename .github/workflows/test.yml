@@ -1,0 +1,36 @@
+name: Bermuda Test
+
+on: push
+
+jobs:
+  build:
+    name: Bermuda Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate dependency group .txt files
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install uv
+          uv pip compile requirements/dev.in -o requirements/dev.txt
+          uv pip compile requirements/docs.in -o requirements/docs.txt
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          file_pattern: 'requirements/dev.txt requirements/docs.txt'
+          commit_message: Automatically built dev and docs requirements .txt files
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install '.[dev]'
+          python3 -m pip install .
+
+      - name: Test
+        run: pytest test
