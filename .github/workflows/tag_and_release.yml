@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with: 
-          token: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+          token: ${{ secrets.BERMUDA_CI }}
 
       - name: Get Version Tag
         id: get_tag
@@ -20,7 +20,7 @@ jobs:
       - name: Bump version and push tag
         uses: anothrNick/github-tag-action@1.36.0
         env:
-          GITHUB_TOKEN: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.BERMUDA_CI }}
           CUSTOM_TAG: ${{ steps.get_tag.outputs.VERSION }}
 
       - name: Create a GitHub release
