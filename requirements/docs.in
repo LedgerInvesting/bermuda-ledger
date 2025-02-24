@@ -1,0 +1,7 @@
+sphinx
+sphinx_markdown_tables
+sphinxcontrib.napoleon
+sphinx-copybutton
+nbsphinx
+recommonmark
+sphinx-wagtail-theme

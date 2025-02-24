@@ -1,0 +1,12 @@
+pre-commit
+pip-tools
+beautifulsoup4
+chainladder
+deepdiff
+pytest
+moto
+defusedxml
+scipy
+ruff
+isort
+numpy>=1.23.1,<2
