@@ -1,0 +1,30 @@
+name: Tag and Release
+permissions:
+  contents: write
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with: 
+          token: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+
+      - name: Get Version Tag
+        id: get_tag
+        run: echo "::set-output name=VERSION::v$(cat bermuda/version.txt)"
+
+      - name: Bump version and push tag
+        uses: anothrNick/github-tag-action@1.36.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+          CUSTOM_TAG: ${{ steps.get_tag.outputs.VERSION }}
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.get_tag.outputs.VERSION }}
+          name: Release ${{ steps.get_tag.outputs.VERSION }}

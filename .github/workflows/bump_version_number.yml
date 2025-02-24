@@ -1,0 +1,29 @@
+name: Bump version
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: 
+          token: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+
+      - name: Apply Version Release Rules
+        id: get_tag_version
+        uses: mathieudutour/github-tag-action@v6.0
+        with:
+          github_token: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+          dry_run: true
+          tag_prefix: ""
+          custom_release_rules: MAJOR:major,MINOR:minor,PATCH:patch,FIX:patch,BUG:patch,FEATURE:minor
+
+      - name: Update __version__
+        run: echo "__version__ = '${{ steps.get_tag_version.outputs.new_tag }}'" > bermuda/__about__.py
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          github_token: ${{ secrets.LEDGER_CI_PERSONAL_ACCESS_TOKEN }}
+          commit_message: Automated version bump to ${{ steps.get_tag_version.outputs.new_tag }}
