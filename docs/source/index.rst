@@ -46,6 +46,6 @@ Indices
 .. |ruff| image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
     :target: https://github.com/astral-sh/ruff
 
-.. |docs| image:: https://readthedocs.com/projects/ledger-investing-bermuda/badge/?version=latest
-    :target: https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/?badge=latest
+.. |docs| image:: https://readthedocs.com/projects/ledger-investing-bermuda-ledger/badge/?version=latest
+    :target: https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/?badge=latest
 
