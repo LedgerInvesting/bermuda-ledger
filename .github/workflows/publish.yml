@@ -24,7 +24,7 @@ jobs:
           python-version: 3.11
 
       - name: Install Twine
-        run: pip install wheel twine
+        run: pip install wheel twine build
 
       - name: Build Package
         run: python -m build
