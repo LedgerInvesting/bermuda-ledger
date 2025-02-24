@@ -1,0 +1,33 @@
+:root {
+    --body-font-size: 1.05rem;
+}
+
+p {
+    font-size: var(--body-font-size);
+}
+
+body code {
+    color: #ff6f21;
+}
+
+body.theme-dark code {
+    color: #ffd901;
+    background: #000000;
+}
+
+dt {
+    font-weight: 700;
+    text-decoration: underline solid 2px;
+}
+
+.highlight .go {
+    color: #bdbdbd;
+}
+
+.highlight .gp {
+    color: #ffd901;
+}
+
+.highlight .c1 {
+    color: #bdbdbd;
+}

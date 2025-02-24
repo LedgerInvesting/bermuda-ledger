@@ -1,0 +1,318 @@
+{
+    "loss_definition": "Loss+DCC",
+    "reinsurance_basis": "Net",
+    "currency": "USD",
+    "country": "US",
+    "cells": [
+        {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1988-12-31",
+            "values": {"paid_loss": 952000, "reported_loss": 1722000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1989-12-31",
+            "values": {"paid_loss": 1529000, "reported_loss": 3830000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1990-12-31",
+            "values": {"paid_loss": 2813000, "reported_loss": 3603000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1991-12-31",
+            "values": {"paid_loss": 3647000, "reported_loss": 3835000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1992-12-31",
+            "values": {"paid_loss": 3724000, "reported_loss": 3873000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1993-12-31",
+            "values": {"paid_loss": 3832000, "reported_loss": 3895000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 3899000, "reported_loss": 3918000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 3907000, "reported_loss": 3918000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 3911000, "reported_loss": 3917000, "earned_premium": 5812000}
+        }, {
+            "period_start": "1988-01-01", "period_end": "1988-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 3912000, "reported_loss": 3917000, "earned_premium": 5812000}
+        },
+        {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1989-12-31",
+            "values": {"paid_loss": 849000, "reported_loss": 1581000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1990-12-31",
+            "values": {"paid_loss": 1564000, "reported_loss": 2192000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1991-12-31",
+            "values": {"paid_loss": 2202000, "reported_loss": 2528000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1992-12-31",
+            "values": {"paid_loss": 2432000, "reported_loss": 2533000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1993-12-31",
+            "values": {"paid_loss": 2468000, "reported_loss": 2528000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 2487000, "reported_loss": 2530000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 2513000, "reported_loss": 2534000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 2526000, "reported_loss": 2541000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 2531000, "reported_loss": 2538000, "earned_premium": 4908000}
+        }, {
+            "period_start": "1989-01-01", "period_end": "1989-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 2527000, "reported_loss": 2532000, "earned_premium": 4908000}
+        },
+        {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1990-12-31",
+            "values": {"paid_loss": 983000, "reported_loss": 1834000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1991-12-31",
+            "values": {"paid_loss": 2211000, "reported_loss": 3009000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1992-12-31",
+            "values": {"paid_loss": 2830000, "reported_loss": 3488000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1993-12-31",
+            "values": {"paid_loss": 3832000, "reported_loss": 4000000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 4039000, "reported_loss": 4105000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 4065000, "reported_loss": 4087000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 4102000, "reported_loss": 4112000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 4155000, "reported_loss": 4170000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 4268000, "reported_loss": 4271000, "earned_premium": 5454000}
+        }, {
+            "period_start": "1990-01-01", "period_end": "1990-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 4274000, "reported_loss": 4279000, "earned_premium": 5454000}
+        },
+        {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1991-12-31",
+            "values": {"paid_loss": 1657000, "reported_loss": 2305000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1992-12-31",
+            "values": {"paid_loss": 2685000, "reported_loss": 3473000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1993-12-31",
+            "values": {"paid_loss": 3169000, "reported_loss": 3713000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 3600000, "reported_loss": 4018000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 3900000, "reported_loss": 4295000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 4320000, "reported_loss": 4334000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 4332000, "reported_loss": 4343000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 4338000, "reported_loss": 4340000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 4341000, "reported_loss": 4342000, "earned_premium": 5165000}
+        }, {
+            "period_start": "1991-01-01", "period_end": "1991-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 4341000, "reported_loss": 4341000, "earned_premium": 5165000}
+        },
+        {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1992-12-31",
+            "values": {"paid_loss": 932000, "reported_loss": 1832000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1993-12-31",
+            "values": {"paid_loss": 1940000, "reported_loss": 2625000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 2626000, "reported_loss": 3086000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 3332000, "reported_loss": 3493000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 3368000, "reported_loss": 3521000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 3491000, "reported_loss": 3563000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 3531000, "reported_loss": 3542000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 3540000, "reported_loss": 3541000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 3540000, "reported_loss": 3541000, "earned_premium": 5214000}
+        }, {
+            "period_start": "1992-01-01", "period_end": "1992-12-31", "evaluation_date": "2001-12-31",
+            "values": {"paid_loss": 3583000, "reported_loss": 3587000, "earned_premium": 5214000}
+        },
+        {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1993-12-31",
+            "values": {"paid_loss": 1162000, "reported_loss": 2289000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 2402000, "reported_loss": 3160000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 2799000, "reported_loss": 3154000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 2996000, "reported_loss": 3204000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 3034000, "reported_loss": 3190000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 3042000, "reported_loss": 3206000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 3230000, "reported_loss": 3351000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 3238000, "reported_loss": 3289000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "2001-12-31",
+            "values": {"paid_loss": 3241000, "reported_loss": 3267000, "earned_premium": 5230000}
+        }, {
+            "period_start": "1993-01-01", "period_end": "1993-12-31", "evaluation_date": "2002-12-31",
+            "values": {"paid_loss": 3268000, "reported_loss": 3268000, "earned_premium": 5230000}
+        },
+        {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "1994-12-31",
+            "values": {"paid_loss": 1478000, "reported_loss": 2881000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 2980000, "reported_loss": 4254000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 3945000, "reported_loss": 4841000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 4714000, "reported_loss": 5176000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 5462000, "reported_loss": 5551000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 5680000, "reported_loss": 5689000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 5682000, "reported_loss": 5683000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "2001-12-31",
+            "values": {"paid_loss": 5683000, "reported_loss": 5688000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "2002-12-31",
+            "values": {"paid_loss": 5684000, "reported_loss": 5684000, "earned_premium": 4992000}
+        }, {
+            "period_start": "1994-01-01", "period_end": "1994-12-31", "evaluation_date": "2003-12-31",
+            "values": {"paid_loss": 5684000, "reported_loss": 5684000, "earned_premium": 4992000}
+        },
+        {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "1995-12-31",
+            "values": {"paid_loss": 1240000, "reported_loss": 2849000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 2080000, "reported_loss": 2956000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 2607000, "reported_loss": 3382000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 3080000, "reported_loss": 3755000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 3678000, "reported_loss": 4148000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 4002000, "reported_loss": 4123000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "2001-12-31",
+            "values": {"paid_loss": 4117000, "reported_loss": 4126000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "2002-12-31",
+            "values": {"paid_loss": 4125000, "reported_loss": 4127000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "2003-12-31",
+            "values": {"paid_loss": 4128000, "reported_loss": 4128000, "earned_premium": 5466000}
+        }, {
+            "period_start": "1995-01-01", "period_end": "1995-12-31", "evaluation_date": "2004-12-31",
+            "values": {"paid_loss": 4128000, "reported_loss": 4128000, "earned_premium": 5466000}
+        },
+        {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "1996-12-31",
+            "values": {"paid_loss": 1326000, "reported_loss": 2541000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 2412000, "reported_loss": 3307000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 3367000, "reported_loss": 3789000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 3843000, "reported_loss": 3973000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 3965000, "reported_loss": 4031000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "2001-12-31",
+            "values": {"paid_loss": 4127000, "reported_loss": 4157000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "2002-12-31",
+            "values": {"paid_loss": 4133000, "reported_loss": 4143000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "2003-12-31",
+            "values": {"paid_loss": 4141000, "reported_loss": 4142000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "2004-12-31",
+            "values": {"paid_loss": 4142000, "reported_loss": 4144000, "earned_premium": 5226000}
+        }, {
+            "period_start": "1996-01-01", "period_end": "1996-12-31", "evaluation_date": "2005-12-31",
+            "values": {"paid_loss": 4144000, "reported_loss": 4144000, "earned_premium": 5226000}
+        },
+        {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "1997-12-31",
+            "values": {"paid_loss": 1413000, "reported_loss": 2203000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "1998-12-31",
+            "values": {"paid_loss": 2683000, "reported_loss": 2934000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "1999-12-31",
+            "values": {"paid_loss": 3173000, "reported_loss": 3608000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2000-12-31",
+            "values": {"paid_loss": 3674000, "reported_loss": 3977000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2001-12-31",
+            "values": {"paid_loss": 3805000, "reported_loss": 4040000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2002-12-31",
+            "values": {"paid_loss": 4005000, "reported_loss": 4121000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2003-12-31",
+            "values": {"paid_loss": 4020000, "reported_loss": 4147000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2004-12-31",
+            "values": {"paid_loss": 4095000, "reported_loss": 4155000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2005-12-31",
+            "values": {"paid_loss": 4132000, "reported_loss": 4183000, "earned_premium": 4962000}
+        }, {
+            "period_start": "1997-01-01", "period_end": "1997-12-31", "evaluation_date": "2006-12-31",
+            "values": {"paid_loss": 4139000, "reported_loss": 4181000, "earned_premium": 4962000}
+        }
+    ]
+}

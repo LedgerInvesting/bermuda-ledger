@@ -1,0 +1,25 @@
+{
+    "slices": [{
+        "cells": [
+            {
+                "period_start": "2020-01-01", "period_end": "2020-03-31", "evaluation_date": "2020-03-31",
+                "values": {"paid_loss": 100, "reported_loss": 200}
+            }, {
+                "period_start": "2020-01-01", "period_end": "2020-03-31", "evaluation_date": "2020-06-30",
+                "values": {"paid_loss": 160, "reported_loss": 270}
+            }, {
+                "period_start": "2020-01-01", "period_end": "2020-03-31", "evaluation_date": "2020-09-30",
+                "values": {"paid_loss": 190, "reported_loss": 310}
+            }, {
+                "period_start": "2020-04-01", "period_end": "2020-06-30", "evaluation_date": "2020-06-30",
+                "values": {"paid_loss": 150, "reported_loss": 400}
+            }, {
+                "period_start": "2020-04-01", "period_end": "2020-06-30", "evaluation_date": "2020-09-30",
+                "values": {"paid_loss": 220, "reported_loss": 480}
+            }, {
+                "period_start": "2020-07-01", "period_end": "2020-09-30", "evaluation_date": "2020-09-30",
+                "values": {"paid_loss": 120, "reported_loss": 500}
+            }
+        ]
+    }]
+}
