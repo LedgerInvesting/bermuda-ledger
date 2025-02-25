@@ -7,7 +7,7 @@ name = "bermuda"
 description = "A module for manipulating insurance loss triangles"
 authors = [ { name = "Ledger Investing" } ]
 readme = "README.rst"
-requires-python = ">=3.10"
+requires-python = ">3.10"
 dynamic = ["version", "optional-dependencies"]
 dependencies = [
     "awswrangler",
