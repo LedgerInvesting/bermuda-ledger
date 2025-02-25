@@ -38,19 +38,19 @@ Core:
 
 ..  code-block:: bash
 
-    python3.11 -m pip install bermuda
+    python3.11 -m pip install bermuda-ledger
 
 Developing:
 
 ..  code-block:: bash
 
-    python3.11 -m pip install 'bermuda[dev]'
+    python3.11 -m pip install 'bermuda-ledger[dev]'
 
 Docs:
 
 ..  code-block:: bash
 
-    python3.11 -m pip install 'bermuda[docs]'
+    python3.11 -m pip install 'bermuda-ledger[docs]'
 
 .. |build-status| image:: https://github.com/LedgerInvesting/bermuda-ledger/actions/workflows/test.yml/badge.svg
     :target: https://github.com/LedgerInvesting/bermuda-ledger/blob/main/.github/workflows/test.yml
