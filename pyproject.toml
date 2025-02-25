@@ -39,7 +39,9 @@ skip = "bermuda/__init__.py"
 package-mode = false
 
 [project.urls]
-documentation = "https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/"
+Homepage = "https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/"
+Documentation = "https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/"
+Repository = "https://github.com/LedgerInvesting/bermuda-ledger"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
