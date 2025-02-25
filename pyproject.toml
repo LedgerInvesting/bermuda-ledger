@@ -3,11 +3,11 @@ requires = ["hatchling", "hatch-requirements-txt"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bermuda"
+name = "bermuda-ledger"
 description = "A module for manipulating insurance loss triangles"
 authors = [ { name = "Ledger Investing" } ]
 readme = "README.rst"
-requires-python = ">=3.10"
+requires-python = ">3.10"
 dynamic = ["version", "optional-dependencies"]
 dependencies = [
     "awswrangler",
@@ -39,7 +39,9 @@ skip = "bermuda/__init__.py"
 package-mode = false
 
 [project.urls]
-documentation = "https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/"
+Homepage = "https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/"
+Documentation = "https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/"
+Repository = "https://github.com/LedgerInvesting/bermuda-ledger"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
