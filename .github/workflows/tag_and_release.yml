@@ -15,7 +15,7 @@ jobs:
 
       - name: Get Version Tag
         id: get_tag
-        run: echo "::set-output name=VERSION::v$(awk -F'"' '/__version__/ {print $2}' bermuda/__about__.py)"
+        run: echo "VERSION=v$(awk -F'\"' '/__version__/ {print $2}' bermuda/__about__.py)" >> $GITHUB_ENV
 
       - name: Bump version and push tag
         uses: anothrNick/github-tag-action@1.36.0
