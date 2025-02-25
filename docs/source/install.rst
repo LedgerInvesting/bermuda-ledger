@@ -8,7 +8,7 @@ Users can install the latest version of Bermuda via pip from PyPi by running:
 
 ..  code:: bash
 
-    python3.11 -m pip install bermuda
+    python3.11 -m pip install bermuda-ledger
 
 We highly recommend using a virtual environment. Bermuda can
 be installed using package managers, like ``uv`` and ``poetry``,
@@ -16,14 +16,14 @@ for example:
 
 ..  code:: bash
 
-    python3.11 -m uv pip install bermuda
+    python3.11 -m uv pip install bermuda-ledger
     python3.11 -m poetry install
 
 You can also download Bermuda from Github directly:
 
 ..  code:: bash
 
-    python3.11 -m pip install git+ssh://git@github.com/LedgerInvesting/bermuda.git
+    python3.11 -m pip install git+ssh://git@github.com/LedgerInvesting/bermuda-ledger.git
 
 
 ``dev`` and ``docs`` dependencies
@@ -36,4 +36,4 @@ dependencies using the ``bermuda[docs]`` or ``bermuda[dev]``
 
 ..  code:: bash
 
-    python3.11 -m pip install "bermuda[dev]"
+    python3.11 -m pip install "bermuda-ledger[dev]"

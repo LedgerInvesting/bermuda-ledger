@@ -40,8 +40,8 @@ Indices
 * :ref:`modindex`
 * :ref:`search`
 
-.. |build-status| image:: https://github.com/LedgerInvesting/bermuda/actions/workflows/test.yml/badge.svg
-    :target: https://github.com/LedgerInvesting/bermuda/blob/main/.github/workflows/test.yml
+.. |build-status| image:: https://github.com/LedgerInvesting/bermuda-ledger/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/LedgerInvesting/bermuda-ledger/blob/main/.github/workflows/test.yml
 
 .. |ruff| image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
     :target: https://github.com/astral-sh/ruff
