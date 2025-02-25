@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-requirements-txt"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bermuda"
+name = "bermuda-ledger"
 description = "A module for manipulating insurance loss triangles"
 authors = [ { name = "Ledger Investing" } ]
 readme = "README.rst"
@@ -39,7 +39,7 @@ skip = "bermuda/__init__.py"
 package-mode = false
 
 [project.urls]
-documentation = "https://ledger-investing-bermuda.readthedocs-hosted.com/en/latest/"
+documentation = "https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/"
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
