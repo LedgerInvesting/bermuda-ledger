@@ -11,7 +11,7 @@ It offers a user-friendly interface for:
 * Loading and saving insurance loss triangles using a number of formats (e.g. JSON, CSV, Pandas :code:`DataFrame` objects, binary files).
 * A single :code:`Triangle` class for manipulating triangles of varying complexities (e.g. ragged, multi-program, cumulative or incremental triangles).
 * An intuitive :code:`Cell` type that can hold multiple data types and metadata.
-* A collection of useful :code:`Cell`- and :code:`Triangle`-level functionality, including summarizing, aggregating, extending, filtering, and bootstrapping.
+* A collection of useful :code:`Cell`- and :code:`Triangle`-level functionality, including summarizing, aggregating, extending, filtering, and bootstrapping insurance loss triangles.
 
 Check out the `full documentation <https://ledger-investing-bermuda-ledger.readthedocs-hosted.com/en/latest/?badge=latest>`_.
 
