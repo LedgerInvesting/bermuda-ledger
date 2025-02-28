@@ -143,9 +143,17 @@ class TriangleDecoder(json.JSONDecoder):
         return cell
 
 
+def triangle_to_dict(tri: Triangle[Cell]) -> dict[str, Any]:
+    return {"slices": [_slice_to_dict(slice_) for slice_ in tri.slices.values()]}
+
+
+def dict_to_triangle(obj: dict[str, Any]) -> Triangle[Cell]:
+    return json_string_to_triangle(json.dumps(obj))
+
+
 class TriangleEncoder(json.JSONEncoder):
     def default(self, obj):
-        return {"slices": [_slice_to_dict(slice_) for slice_ in obj.slices.values()]}
+        return triangle_to_dict(obj)
 
 
 def _slice_to_dict(slice_: Triangle[Cell]) -> dict[str, Any]:

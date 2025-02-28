@@ -4,6 +4,7 @@ from .io import (
     array_data_frame_to_triangle,
     binary_to_triangle,
     chain_ladder_to_triangle,
+    dict_to_triangle,
     json_to_triangle,
     long_csv_to_triangle,
     long_data_frame_to_triangle,
@@ -11,6 +12,7 @@ from .io import (
     triangle_to_array_data_frame,
     triangle_to_binary,
     triangle_to_chain_ladder,
+    triangle_to_dict,
     triangle_to_json,
     triangle_to_long_csv,
     triangle_to_long_data_frame,
@@ -83,6 +85,7 @@ Triangle.to_json = wraps(triangle_to_json)(triangle_to_json)
 Triangle.to_chain_ladder = wraps(triangle_to_chain_ladder)(
     lambda self, *args, **kwargs: triangle_to_chain_ladder(self, *args, **kwargs)
 )
+Triangle.to_dict = wraps(triangle_to_dict)(triangle_to_dict)
 Triangle.to_long_csv = wraps(triangle_to_long_csv)(
     lambda self, *args, **kwargs: triangle_to_long_csv(self, *args, **kwargs)
 )
@@ -109,6 +112,7 @@ Triangle.from_binary = staticmethod(wraps(binary_to_triangle)(binary_to_triangle
 Triangle.from_chain_ladder = staticmethod(
     wraps(chain_ladder_to_triangle)(chain_ladder_to_triangle)
 )
+Triangle.from_dict = staticmethod(wraps(dict_to_triangle)(dict_to_triangle))
 Triangle.from_long_csv = staticmethod(wraps(long_csv_to_triangle)(long_csv_to_triangle))
 Triangle.from_long_data_frame = staticmethod(
     wraps(long_data_frame_to_triangle)(long_data_frame_to_triangle)
