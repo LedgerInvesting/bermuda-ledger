@@ -664,5 +664,4 @@ def test_triangle_dict_io():
 
     dict_tri = incremental_tri_slices.to_dict()
     loaded_tri = Triangle.from_dict(dict_tri)
-    breakpoint()
     assert loaded_tri == incremental_tri_slices
