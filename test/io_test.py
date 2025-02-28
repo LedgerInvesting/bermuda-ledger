@@ -241,11 +241,15 @@ def test_long_data_frame_write():
 def test_triangle_to_json():
     meyers_tri = json_to_triangle("test/test_data/meyers_triangle.json")
     json_str = triangle_to_json(meyers_tri)
+    method_json = meyers_tri.to_json()
     assert isinstance(json_str, str)
+    assert json_str == method_json
 
     inc_tri = json_to_triangle("test/test_data/incremental_triangle.json")
+    method_inc_tri = Triangle.from_json("test/test_data/incremental_triangle.json")
     json_str_inc = triangle_to_json(inc_tri)
     assert isinstance(json_str_inc, str)
+    assert inc_tri == method_inc_tri
 
 
 def test_triangle_json_df_triangle_conversion():
@@ -651,3 +655,14 @@ def test_triangle_to_array_df():
     assert isinstance(right_edge_df, pd.DataFrame)
     assert paid_df.shape == reported_df.shape == (3, 4)
     assert right_edge_df.shape == (3, 4)
+
+
+def test_triangle_dict_io():
+    dict_tri = base_tri.to_dict()
+    loaded_tri = Triangle.from_dict(dict_tri)
+    assert loaded_tri == base_tri
+
+    dict_tri = incremental_tri_slices.to_dict()
+    loaded_tri = Triangle.from_dict(dict_tri)
+    breakpoint()
+    assert loaded_tri == incremental_tri_slices

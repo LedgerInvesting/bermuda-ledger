@@ -21,10 +21,12 @@ from .data_frame_output import (
     triangle_to_wide_data_frame,
 )
 from .json import (
+    dict_to_triangle,
     json_string_to_triangle,
     json_to_triangle,
     triangle_json_load,
     triangle_json_loads,
+    triangle_to_dict,
     triangle_to_json,
 )
 from .matrix import *

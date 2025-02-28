@@ -31,6 +31,9 @@ include = ["bermuda/**", "bermuda/meyers.trib"]
 [tool.hatch.version]
 path = "bermuda/__about__.py"
 
+[tool.pytest.ini_options]
+addopts = "-s"
+
 [tool.isort]
 profile = "black"
 skip = "bermuda/__init__.py"
