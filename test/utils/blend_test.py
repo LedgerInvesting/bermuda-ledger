@@ -124,8 +124,7 @@ def test_simple_blend_linear():
         }
     )
     blended_tri_flip = simple_triangle.blend([simple_triangle_flip], method="linear")
-    blended_tri_array = simple_triangle.blend([simple_triangle_arrays], method="linear"
-    )
+    blended_tri_array = simple_triangle.blend([simple_triangle_arrays], method="linear")
 
     values_flip = blended_tri_flip[0].values
     values_array = blended_tri_array[0].values

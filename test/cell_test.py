@@ -210,9 +210,9 @@ def test_incremental_init_eval_dates():
 def test_cell_repr_html():
     # It's brittle to make assertions on the HTML structure, so for now we can
     # Just check that the return value is valid HTML.
-    assert is_valid_html(
-        test_cell._repr_html_()
-    ), "string returned from _repr_html_ is not valid html"
+    assert is_valid_html(test_cell._repr_html_()), (
+        "string returned from _repr_html_ is not valid html"
+    )
 
     # test _repr_html_ with ndarray values
     test_inc_cell_np = Cell(
@@ -226,17 +226,17 @@ def test_cell_repr_html():
         },
     )
 
-    assert is_valid_html(
-        test_inc_cell_np._repr_html_()
-    ), "string returned from _repr_html_ is not valid html"
+    assert is_valid_html(test_inc_cell_np._repr_html_()), (
+        "string returned from _repr_html_ is not valid html"
+    )
 
 
 def test_incremental_cell_repr_html():
     # It's brittle to make assertions on the HTML structure, so for now we can
     # Iust check that the return value is valid HTML.
-    assert is_valid_html(
-        test_inc_cell._repr_html_()
-    ), "string returned from _repr_html_ is not valid html"
+    assert is_valid_html(test_inc_cell._repr_html_()), (
+        "string returned from _repr_html_ is not valid html"
+    )
 
     # test _repr_html_ with ndarray values
     test_inc_cell_np = IncrementalCell(
@@ -251,9 +251,9 @@ def test_incremental_cell_repr_html():
         },
     )
 
-    assert is_valid_html(
-        test_inc_cell_np._repr_html_()
-    ), "string returned from _repr_html_ is not valid html"
+    assert is_valid_html(test_inc_cell_np._repr_html_()), (
+        "string returned from _repr_html_ is not valid html"
+    )
 
 
 def test_format_value():
@@ -377,8 +377,12 @@ def test_sketchy_replacement():
 
 def test_cell_type_check_int64():
     # will fail if int64 or float64 do not pass type checks per base cell class
-    cell_int64 = test_cell.derive_fields(reported_loss=lambda ob: np.int64(ob["reported_loss"]))
-    cell_float64 = test_cell.derive_fields(reported_loss=lambda ob: np.float64(ob["reported_loss"]))
+    cell_int64 = test_cell.derive_fields(
+        reported_loss=lambda ob: np.int64(ob["reported_loss"])
+    )
+    cell_float64 = test_cell.derive_fields(
+        reported_loss=lambda ob: np.float64(ob["reported_loss"])
+    )
 
     assert isinstance(cell_int64, Cell)
     assert isinstance(cell_float64, Cell)
