@@ -220,8 +220,6 @@ def wide_data_frame_to_triangle(
             )
         ]
     else:
-        if "risk_basis" not in df.columns:
-            df = df.assign(risk_basis=cell_metadata[0].risk_basis)
         cells = []
         for idx, group_df in df.groupby(
             ["period_start", "period_end", "evaluation_date", "risk_basis"]
@@ -378,8 +376,6 @@ def long_data_frame_to_triangle(
                         values={field: np.array(value)},
                     )
     else:
-        if "risk_basis" not in df.columns:
-            df = df.assign(risk_basis=cell_metadata[0].risk_basis)
         for idx, group_df in df.groupby(
             ["period_start", "period_end", "evaluation_date", "field", "risk_basis"]
             + detail_cols

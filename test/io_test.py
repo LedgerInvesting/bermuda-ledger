@@ -371,22 +371,6 @@ def test_wide_data_frame_to_triangle_missing_details():
     assert len(triangle.slices) == 2
 
 
-def test_wide_data_frame_to_triangle_minimum_fields():
-    df = pd.DataFrame(
-        {
-            "period_start": [np.datetime64(datetime.date(2023, 1, 1))] * 2,
-            "period_end": [np.datetime64(datetime.date(2023, 1, 31))] * 2,
-            "evaluation_date": [
-                np.datetime64(datetime.date(2023, 1, 31)),
-                np.datetime64(datetime.date(2023, 2, 28)),
-            ],
-            "reported_loss": [1, 1],
-        }
-    )
-
-    assert wide_data_frame_to_triangle(df, field_cols=["reported_loss"])
-
-
 def test_scenario_triangle_to_long_csv(tri_np_values):
     with tempfile.NamedTemporaryFile("w") as f:
         triangle_to_long_csv(tri_np_values, f.name)
@@ -537,9 +521,9 @@ def test_trib_triangle_value_io():
                     period_end=datetime.date(2020, 12, 31),
                     evaluation_date=datetime.date(2020, 12, 31),
                     values={
-                        "paid_loss": (
-                            cell_type(100) if cell_type is not type(None) else None
-                        )
+                        "paid_loss": cell_type(100)
+                        if cell_type is not type(None)
+                        else None
                     },
                 )
             ]
