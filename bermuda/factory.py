@@ -41,6 +41,7 @@ from .utils import (
 from .plot import (
     plot_data_completeness,
     plot_right_edge,
+    plot_heatmap,
 )
 
 # utils
@@ -133,3 +134,4 @@ Triangle.from_json = staticmethod(wraps(json_to_triangle)(json_to_triangle))
 # plots
 Triangle.plot_right_edge = wraps(plot_right_edge)(lambda self, *args, **kwargs: plot_right_edge(self, *args, **kwargs))
 Triangle.plot_data_completeness = wraps(plot_data_completeness)(lambda self, *args, **kwargs: plot_data_completeness(self, *args, **kwargs))
+Triangle.plot_heatmap = wraps(plot_heatmap)(lambda self, *args, **kwargs: plot_heatmap(self, *args, **kwargs))

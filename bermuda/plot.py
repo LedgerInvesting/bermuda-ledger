@@ -1,9 +1,9 @@
 import altair as alt
 from babel.numbers import get_currency_symbol
 import pandas as pd
-from math import ceil, exp
+import numpy as np
 
-from .triangle import Triangle
+from .triangle import Triangle, Cell
 
 alt.renderers.enable("browser")
 
@@ -19,7 +19,7 @@ BASE_WIDTH = "container"
 
 BASE_AXIS_LABEL_FONT_SIZE = 16
 BASE_AXIS_TITLE_FONT_SIZE = 18
-SIZE_FACTOR = 0.1
+FONT_SIZE_DECAY_FACTOR = 0.1
 
 @alt.theme.register("bermuda_plot_theme", enable=True)
 def bermuda_plot_theme() -> alt.theme.ThemeConfig:
@@ -33,7 +33,7 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
                 "guide-title": {"fontSize": BASE_AXIS_TITLE_FONT_SIZE, "font": "monospace"},
             },
             "mark": {"color": "black"},
-            "title": {"anchor": "start"},
+            "title": {"anchor": "start", "offset": 20},
             "legend": {
                 "orient": "right", 
                 "titleAnchor": "start",
@@ -44,20 +44,8 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
         },
     }
 
-def _currency_symbol(triangle: Triangle) -> str:
-    code = triangle.metadata[0].currency
-    return get_currency_symbol(code, locale="en_US") or "$"
 
-def _concat_slice_charts(charts: list[alt.Chart], **kwargs) -> alt.Chart:
-    if len(charts) == 1:
-        return charts[0].properties(**kwargs)
-
-    ncols = max(2, ceil(len(charts) / 4))
-    fig = alt.concat(*charts, autosize="pad", columns=ncols, **kwargs)
-    return fig
-
-
-def plot_right_edge(triangle: Triangle) -> alt.Chart:
+def plot_right_edge(triangle: Triangle, show_uncertainty: bool = True, uncertainty_type: str = "ribbon") -> alt.Chart:
     main_title = alt.Title(
         "Latest Loss Ratio",
         subtitle="The most recent loss ratio diagonal"
@@ -71,6 +59,8 @@ def plot_right_edge(triangle: Triangle) -> alt.Chart:
                 triangle_slice, 
                 alt.Title(f"slice {i + 1}", **SLICE_TITLE_KWARGS),
                 n_slices,
+                show_uncertainty,
+                uncertainty_type,
             ).properties(width=width, height=height) for i, (m, triangle_slice) 
             in enumerate(triangle.slices.items())
         ],
@@ -82,16 +72,13 @@ def plot_right_edge(triangle: Triangle) -> alt.Chart:
         **_compute_font_sizes(n_slices),
     )
 
-def plot_right_edge_slice(triangle: Triangle, title: alt.Title, n_slices: int) -> alt.Chart:
-    if not (
-        "earned_premium" in triangle.fields
-        and ("paid_loss" in triangle.fields or "reported_loss" in triangle.fields)
-    ):
-        raise ValueError(
-            "Triangle must contain earned_premium and either paid or reported loss fields "
-            f"in order to plot right edge. This triangle contains {triangle.fields}"
-        )
 
+def plot_right_edge_slice(triangle: Triangle, title: alt.Title, n_slices: int, show_uncertainty: bool = True, uncertainty_type: str = "ribbon") -> alt.Chart:
+    if not "earned_premium" in triangle.fields:
+        raise ValueError(
+            "Triangle must contain `earned_premium` to plot its right edge. "
+            f"This triangle contains {triangle.fields}"
+        )
 
     loss_fields = [field for field in triangle.fields if "_loss" in field]
 
@@ -101,11 +88,7 @@ def plot_right_edge_slice(triangle: Triangle, title: alt.Title, n_slices: int) -
             "period_end": pd.to_datetime(cell.period_end),
             "evaluation_date": pd.to_datetime(cell.evaluation_date),
             "dev_lag": cell.dev_lag(),
-            "Loss Ratio": (
-                cell[field] / cell["earned_premium"]
-                if field in cell
-                else None
-            ),
+            **_calculate_field_summary(cell, lambda ob: ob[field] / ob["earned_premium"], "loss_ratio"),
             "Field": field.replace("_", " ").title(),
         }
         for cell in triangle.right_edge
@@ -139,12 +122,32 @@ def plot_right_edge_slice(triangle: Triangle, title: alt.Title, n_slices: int) -
         tooltip=[alt.Tooltip("period_start:T", title="Period Start"), alt.Tooltip("period_end:T", title="Period End"), alt.Tooltip("dev_lag:O", title="Dev Lag"), alt.Tooltip("evaluation_date:T", title="Evaluation Date"), alt.Tooltip("Earned Premium:Q", format=f"{currency},.0f")],
     )
 
+    if show_uncertainty and uncertainty_type == "ribbon":
+        loss_error = alt.Chart(loss_data).mark_area(
+            opacity=0.5,
+        ).encode(
+            x=alt.X(f"yearmonth(period_start):T"),
+            y=alt.Y("loss_ratio_lower_ci:Q").axis(title=None, format="%"),
+            y2=alt.Y2("loss_ratio_upper_ci:Q"),
+            color=alt.Color("Field:N"),
+        )
+    elif show_uncertainty and uncertainty_type == "segments":
+        loss_error = alt.Chart(loss_data).mark_errorbar(
+        ).encode(
+            x=alt.X(f"yearmonth(period_start):T"),
+            y=alt.Y("loss_ratio_lower_ci:Q").axis(title=None, format="%"),
+            y2=alt.Y2("loss_ratio_upper_ci:Q"),
+            color=alt.Color("Field:N"),
+        )
+    else:
+        loss_error = alt.LayerChart()
+
     lines = alt.Chart(loss_data).mark_line(
         size=1,
     ).encode(
         x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title("Period Start"),
-        y=alt.Y("Loss Ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")).title("Loss Ratio (%)"),
-        color=alt.Color("Field:N", legend=None),
+        y=alt.Y("loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")).title("Loss Ratio (%)"),
+        color=alt.Color("Field:N"),
     )
 
     points = alt.Chart(loss_data).mark_point(
@@ -153,12 +156,12 @@ def plot_right_edge_slice(triangle: Triangle, title: alt.Title, n_slices: int) -
         opacity=1,
     ).encode(
         x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title("Period Start"),
-        y=alt.Y("Loss Ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")).title("Loss Ratio (%)"),
+        y=alt.Y("loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")).title("Loss Ratio (%)"),
         color=alt.Color("Field:N").legend(title=None),
-        tooltip=[alt.Tooltip("period_start:T", title="Period Start"), alt.Tooltip("period_end:T", title="Period End"), alt.Tooltip("dev_lag:O", title="Dev Lag"), alt.Tooltip("evaluation_date:T", title="Evaluation Date"), alt.Tooltip("Loss Ratio:Q", format=".2%")],
+        tooltip=[alt.Tooltip("period_start:T", title="Period Start"), alt.Tooltip("period_end:T", title="Period End"), alt.Tooltip("dev_lag:O", title="Dev Lag"), alt.Tooltip("evaluation_date:T", title="Evaluation Date"), alt.Tooltip("loss_ratio:Q", title="Loss Ratio (%)", format=".2%")],
     )
 
-    fig = alt.layer(bar, lines, points).resolve_scale(
+    fig = alt.layer(bar, loss_error + lines + points).resolve_scale(
         y="independent",
         color="independent",
     )
@@ -201,6 +204,8 @@ def plot_data_completeness_slice(triangle: Triangle, title: alt.Title, n_slices:
         )
 
     currency = _currency_symbol(triangle)
+
+    selection = alt.selection_point()
     
     cell_data = alt.Data(values=[
         *[
@@ -210,12 +215,10 @@ def plot_data_completeness_slice(triangle: Triangle, title: alt.Title, n_slices:
                 "evaluation_date": pd.to_datetime(cell.evaluation_date), 
                 "dev_lag": cell.dev_lag(), 
                 "Number of Fields": len(cell.values), 
-                "Fields": ", ".join([field.replace("_", " ").title() + f" ({currency}{cell[field]:,.0f})" for field in cell.values]),
+                "Fields": ", ".join([field.replace("_", " ").title() + f" ({currency}{np.mean(cell[field]):,.0f})" for field in cell.values]),
             } for cell in triangle.cells
         ]
     ])
-
-    selection = alt.selection_point()
 
     fig = alt.Chart(
         cell_data, 
@@ -238,9 +241,112 @@ def plot_data_completeness_slice(triangle: Triangle, title: alt.Title, n_slices:
     return fig.interactive()
 
 
+def plot_heatmap(triangle: Triangle, field: str = "paid_loss") -> alt.Chart:
+    main_title = alt.Title(
+        "Triangle Loss Ratio Heatmap",
+    )
+    width = BASE_WIDTH if len(triangle.slices) == 1 else 400 * 3 / len(triangle.slices)
+    height = BASE_HEIGHT if len(triangle.slices) == 1 else 300  * 3 / len(triangle.slices)
+    n_slices = len(triangle.slices)
+    fig = _concat_slice_charts(
+        [
+            plot_heatmap_slice(
+                triangle_slice, 
+                field,
+                alt.Title(f"slice {i + 1}", **SLICE_TITLE_KWARGS),
+                n_slices,
+            ).properties(width=width, height=height) for i, (_, triangle_slice) 
+            in enumerate(triangle.slices.items())
+        ],
+        title=main_title,
+    ).configure_axis(
+        **_compute_font_sizes(n_slices),
+    )
+    return fig
+
+def plot_heatmap_slice(triangle: Triangle, field: str = "paid_loss", title: alt.Title = alt.Title(""), n_slices: int = 1) -> alt.Chart:
+    if not "earned_premium" in triangle.fields:
+        raise ValueError(
+            "Triangle must contain `earned_premium` to plot the loss ratio heatmap. "
+            f"This triangle contains {triangle.fields}"
+        )
+
+    loss_data = alt.Data(values=[
+        *[{
+            "period_start": pd.to_datetime(cell.period_start),
+            "period_end": pd.to_datetime(cell.period_end),
+            "evaluation_date": pd.to_datetime(cell.evaluation_date),
+            "dev_lag": cell.dev_lag(),
+            **_calculate_field_summary(cell, lambda ob: 100 * ob[field] / ob["earned_premium"], "loss_ratio"),
+            "Field": field.replace("_", " ").title(),
+        }
+        for cell in triangle
+        if "earned_premium" in cell
+        ]
+    ])
+
+
+    base = alt.Chart(loss_data, title=title).encode(
+        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0)).title("Dev Lag (months)"),
+        y=alt.X("yearmonth(period_start):O", scale=alt.Scale(reverse=False)).title("Period Start"),
+    )
+
+    
+    stroke_predicate = alt.datum.loss_ratio_sd / alt.datum.loss_ratio > 0
+    selection = alt.selection_interval()
+    heatmap = base.mark_rect(
+    ).encode(
+        color=alt.when(
+            selection
+        ).then(alt.Color("loss_ratio:Q").title(field.replace("_", " ").title() + " %")).otherwise(
+            alt.value("gray"),
+        ),
+        tooltip=[alt.Tooltip("period_start:T", title="Period Start"), alt.Tooltip("period_end:T", title="Period End"), alt.Tooltip("evaluation_date:T", title="Evaluation Date"), alt.Tooltip("dev_lag:O", title="Dev Lag (months)")],
+        stroke=alt.when(stroke_predicate).then(alt.value("black")),
+        strokeWidth=alt.when(stroke_predicate).then(alt.value(3)).otherwise(alt.value(0)),
+    ).add_params(
+        selection
+    )
+
+    text_color_predicate = alt.datum.loss_ratio > 70
+    text = base.mark_text(fontSize=20 * np.exp(-FONT_SIZE_DECAY_FACTOR * n_slices), font="monospace").encode(
+        text=alt.Text("loss_ratio:Q", format=".2f"),
+        color=alt.when(text_color_predicate).then(alt.value("lightgray")).otherwise(alt.value("black")),
+    )
+
+    return heatmap + text
+
+
+def _calculate_field_summary(cell: Cell, fn: callable, name: str, probs: tuple[float, float] = (0.05, 0.95)):
+    try:
+        metric = fn(cell)
+    except Exception:
+        return {f"{name}": None, f"{name}_sd": None, f"{name}_lower_ci": None, f"{name}_upper_ci": None}
+
+
+    if np.isscalar(metric) or len(metric) == 1:
+        return {f"{name}": metric, f"{name}_sd": 0, f"{name}_lower_ci": None, f"{name}_upper_ci": None}
+
+    point = np.mean(metric)
+    lower, upper = np.quantile(metric, probs)
+    return {f"{name}": point, f"{name}_sd": metric.std(), f"{name}_lower_ci": lower, f"{name}_upper_ci": upper}
+
+
 def _compute_font_sizes(n_slices: int) -> dict[str, float | int]:
     return {
-        "titleFontSize": BASE_AXIS_TITLE_FONT_SIZE * exp(-SIZE_FACTOR * (n_slices - 1)),
-        "labelFontSize": BASE_AXIS_LABEL_FONT_SIZE * exp(-SIZE_FACTOR * (n_slices - 1)) 
+        "titleFontSize": BASE_AXIS_TITLE_FONT_SIZE * np.exp(-FONT_SIZE_DECAY_FACTOR * (n_slices - 1)),
+        "labelFontSize": BASE_AXIS_LABEL_FONT_SIZE * np.exp(-FONT_SIZE_DECAY_FACTOR * (n_slices - 1)) 
     }
+
+def _currency_symbol(triangle: Triangle) -> str:
+    code = triangle.metadata[0].currency
+    return get_currency_symbol(code, locale="en_US") or "$"
+
+def _concat_slice_charts(charts: list[alt.Chart], **kwargs) -> alt.Chart:
+    if len(charts) == 1:
+        return charts[0].properties(**kwargs)
+
+    ncols = max(2, np.ceil(len(charts) / 4))
+    fig = alt.concat(*charts, autosize="pad", columns=ncols, **kwargs)
+    return fig
 
