@@ -13,7 +13,7 @@ dependencies = [
     "awswrangler",
     "numpy>1.23.1,<2",
     "pandas>1.4.1",
-    "plotly",
+    "altair",
     "scipy",
     "toolz",
 ]

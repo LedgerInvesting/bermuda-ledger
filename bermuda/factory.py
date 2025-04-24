@@ -38,6 +38,10 @@ from .utils import (
     to_cumulative,
     to_incremental,
 )
+from .plot import (
+    plot_data_completeness,
+    plot_right_edge,
+)
 
 # utils
 Triangle.aggregate = wraps(aggregate)(
@@ -125,3 +129,7 @@ Triangle.from_wide_data_frame = staticmethod(
     wraps(wide_data_frame_to_triangle)(wide_data_frame_to_triangle)
 )
 Triangle.from_json = staticmethod(wraps(json_to_triangle)(json_to_triangle))
+
+# plots
+Triangle.plot_right_edge = wraps(plot_right_edge)(lambda self, *args, **kwargs: plot_right_edge(self, *args, **kwargs))
+Triangle.plot_data_completeness = wraps(plot_data_completeness)(lambda self, *args, **kwargs: plot_data_completeness(self, *args, **kwargs))

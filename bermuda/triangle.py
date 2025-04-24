@@ -14,6 +14,8 @@ import plotly.graph_objects as go
 import toolz as tlz
 from plotly.subplots import make_subplots
 
+import altair as alt
+
 from .base import Cell, IncrementalCell, Metadata, common_metadata, metadata_diff
 from .date_utils import dev_lag_months, eval_date_resolution, period_resolution
 from .errors import DuplicateCellWarning, TriangleEmptyError, TriangleError
@@ -768,7 +770,7 @@ class Triangle(abc.Set):
         fig.update_layout(title="Triangle Most Recent Diagonal (UNDEVELOPED)")
         return fig
 
-    def plot_data_completeness(self) -> go.Figure:
+    def plot_data_completeness_old(self) -> go.Figure:
         """Plot the coordinates of each cell in the Triangle along with metric coverage information.
 
         Returns:
