@@ -58,7 +58,9 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
 
 
 def plot_right_edge(
-    triangle: Triangle, show_uncertainty: bool = True, uncertainty_type: str = "ribbon",
+    triangle: Triangle,
+    show_uncertainty: bool = True,
+    uncertainty_type: str = "ribbon",
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -112,7 +114,10 @@ def _plot_right_edge(
                 {
                     **_core_plot_data(cell),
                     **_calculate_field_summary(
-                        cell=cell, prev_cell=None, func=lambda ob: ob[field] / ob["earned_premium"], name="loss_ratio"
+                        cell=cell,
+                        prev_cell=None,
+                        func=lambda ob: ob[field] / ob["earned_premium"],
+                        name="loss_ratio",
                     ),
                     "Field": field.replace("_", " ").title(),
                 }
@@ -388,7 +393,11 @@ def plot_heatmap(
 
 
 def _plot_heatmap(
-    triangle: Triangle, metric: MetricFunc, name: str, title: alt.Title, mark_scaler: int
+    triangle: Triangle,
+    metric: MetricFunc,
+    name: str,
+    title: alt.Title,
+    mark_scaler: int,
 ) -> alt.Chart:
     metric_data = alt.Data(
         values=[
@@ -441,7 +450,8 @@ def _plot_heatmap(
     sd_metric = triangle.extract(lambda cell: np.mean(metric(cell))).std()
     text_color_predicate = f"datum.metric > {(mean_metric + 2 * sd_metric)} || datum.metric < {(mean_metric - 2 * sd_metric)}"
     text = base.mark_text(
-        fontSize=BASE_AXIS_TITLE_FONT_SIZE * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
+        fontSize=BASE_AXIS_TITLE_FONT_SIZE
+        * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
         font="monospace",
     ).encode(
         text=alt.Text("metric:Q", format=",.1f"),
@@ -451,6 +461,7 @@ def _plot_heatmap(
     )
 
     return heatmap + text
+
 
 def plot_growth_curve(
     triangle: Triangle,
@@ -528,8 +539,7 @@ def _plot_growth_curve(
                     **_calculate_field_summary(cell, prev_cell, metric, "metric"),
                     "Field": name,
                 }
-                for cell, prev_cell
-                in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
@@ -562,7 +572,9 @@ def _plot_growth_curve(
     )
 
     lines = base.mark_line().encode(color=conditional_no_legend)
-    points = base.mark_point(stroke="black", filled=True).encode(color=conditional_no_legend)
+    points = base.mark_point(stroke="black", filled=True).encode(
+        color=conditional_no_legend
+    )
     ultimates = (
         base.mark_point(size=300 / n_metrics, opacity=1, filled=True, stroke="black")
         .encode(color=conditional)
@@ -592,7 +604,9 @@ def _plot_growth_curve(
 def plot_sunset(
     triangle: Triangle,
     metric_dict: MetricFuncDict = {
-        "Boxcox Paid ATA Factor": lambda cell, prev_cell: boxcox(cell["paid_loss"] / prev_cell["paid_loss"], 0.3)
+        "Boxcox Paid ATA Factor": lambda cell, prev_cell: boxcox(
+            cell["paid_loss"] / prev_cell["paid_loss"], 0.3
+        )
     },
     uncertainty: bool = True,
     uncertainty_type: str = "ribbon",
@@ -635,7 +649,7 @@ def plot_sunset(
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
             title=main_title,
-            ncols=max_cols
+            ncols=max_cols,
         )
         .configure_axis(
             **_compute_font_sizes(n_slices),
@@ -661,8 +675,7 @@ def _plot_sunset(
                     **_core_plot_data(cell),
                     **_calculate_field_summary(cell, prev_cell, metric, name),
                 }
-                for cell, prev_cell
-                in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
@@ -684,9 +697,9 @@ def _plot_sunset(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("yearmonth(evaluation_date):O", axis=alt.Axis(grid=True, labelAngle=0)).title(
-            "Calendar Year"
-        ),
+        x=alt.X(
+            "yearmonth(evaluation_date):O", axis=alt.Axis(grid=True, labelAngle=0)
+        ).title("Calendar Year"),
         y=alt.X(f"{name}:Q").title(name).scale(type="sqrt"),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -697,12 +710,24 @@ def _plot_sunset(
         ],
     )
 
-    points = base.mark_point(stroke="black", size=200 / n_metrics, filled=True).encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
-    regression = base.transform_loess("evaluation_date", f"{name}", groupby=["dev_lag"], bandwidth=0.9).mark_line(strokeWidth=3).encode(color=color_conditional_no_legend, opacity=opacity_conditional)
+    points = base.mark_point(stroke="black", size=200 / n_metrics, filled=True).encode(
+        color=color_conditional,
+        opacity=opacity_conditional,
+        strokeOpacity=opacity_conditional,
+    )
+    regression = (
+        base.transform_loess(
+            "evaluation_date", f"{name}", groupby=["dev_lag"], bandwidth=0.9
+        )
+        .mark_line(strokeWidth=3)
+        .encode(color=color_conditional_no_legend, opacity=opacity_conditional)
+    )
 
     if uncertainty and uncertainty_type == "ribbon":
         ribbon_conditional = (
-            alt.when(selector).then(alt.OpacityValue(0.5)).otherwise(alt.OpacityValue(0.2))
+            alt.when(selector)
+            .then(alt.OpacityValue(0.5))
+            .otherwise(alt.OpacityValue(0.2))
         )
         errors = base.mark_area().encode(
             y=alt.Y(f"{name}_lower_ci:Q").axis(title=name),
@@ -721,6 +746,7 @@ def _plot_sunset(
         errors = alt.LayerChart()
 
     return alt.layer(errors, regression, points).add_params(selector)
+
 
 def plot_mountain(
     triangle: Triangle,
@@ -768,7 +794,7 @@ def plot_mountain(
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
             title=main_title,
-            ncols=max_cols
+            ncols=max_cols,
         )
         .configure_axis(
             **_compute_font_sizes(n_slices),
@@ -798,8 +824,7 @@ def _plot_mountain(
                     **_calculate_field_summary(cell, prev_cell, metric, "metric"),
                     "Field": name,
                 }
-                for cell, prev_cell
-                in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
@@ -832,7 +857,9 @@ def _plot_mountain(
     )
 
     lines = base.mark_line().encode(color=conditional_no_legend)
-    points = base.mark_point(opacity=1, filled=True, stroke="black").encode(color=conditional)
+    points = base.mark_point(opacity=1, filled=True, stroke="black").encode(
+        color=conditional
+    )
     ultimates = (
         base.mark_point(size=300 / n_metrics, opacity=1, filled=True, stroke="black")
         .encode(color=conditional_no_legend)
@@ -882,29 +909,27 @@ def plot_ballistic(
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
     width = BASE_WIDTH if n_slices == 1 else width
     height = BASE_HEIGHT if n_slices == 1 else height
-    fig = (
-        _concat_charts(
-            [
-                _plot_ballistic(
-                    triangle_slice,
-                    axis_metrics,
-                    alt.Title(
-                        f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
-                        **SLICE_TITLE_KWARGS,
-                    ),
-                    max_cols,
-                    uncertainty,
-                ).properties(width=width, height=height)
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
-            title=main_title,
-            ncols=max_cols,
-        )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
+    fig = _concat_charts(
+        [
+            _plot_ballistic(
+                triangle_slice,
+                axis_metrics,
+                alt.Title(
+                    f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
+                    **SLICE_TITLE_KWARGS,
+                ),
+                max_cols,
+                uncertainty,
+            ).properties(width=width, height=height)
+            for i, (_, triangle_slice) in enumerate(triangle.slices.items())
+        ],
+        title=main_title,
+        ncols=max_cols,
+    ).configure_axis(
+        **_compute_font_sizes(max_cols),
     )
     return fig.interactive()
+
 
 def _plot_ballistic(
     triangle: Triangle,
@@ -926,8 +951,7 @@ def _plot_ballistic(
                     **_calculate_field_summary(cell, prev_cell, func_x, name_x),
                     **_calculate_field_summary(cell, prev_cell, func_y, name_y),
                 }
-                for cell, prev_cell
-                in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
@@ -975,9 +999,9 @@ def _plot_ballistic(
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler).encode(
-        color=color_conditional, opacity=opacity_conditional
-    )
+    points = base.mark_point(
+        filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
+    ).encode(color=color_conditional, opacity=opacity_conditional)
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
         .encode(color=color_conditional, opacity=opacity_conditional)
@@ -999,7 +1023,7 @@ def _plot_ballistic(
 
 
 def plot_broom(
-    triangle: Triangle, 
+    triangle: Triangle,
     axis_metrics: MetricFuncDict = {
         "Paid/Reported Ratio": lambda cell: 100
         * cell["paid_loss"]
@@ -1008,10 +1032,10 @@ def plot_broom(
         * cell["paid_loss"]
         / cell["earned_premium"],
     },
-   uncertainty: bool = True,
-   width: int = 400,
-   height: int = 200,
-   ncols: int | None = None,
+    uncertainty: bool = True,
+    width: int = 400,
+    height: int = 200,
+    ncols: int | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a broom."""
     main_title = alt.Title(
@@ -1021,37 +1045,34 @@ def plot_broom(
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
     width = BASE_WIDTH if n_slices == 1 else width
     height = BASE_HEIGHT if n_slices == 1 else height
-    fig = (
-        _concat_charts(
-            [
-                _plot_broom(
-                    triangle_slice,
-                    axis_metrics,
-                    alt.Title(
-                        f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
-                        **SLICE_TITLE_KWARGS,
-                    ),
-                    max_cols,
-                    uncertainty,
-                ).properties(width=width, height=height)
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
-            title=main_title,
-            ncols=max_cols,
-        )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
+    fig = _concat_charts(
+        [
+            _plot_broom(
+                triangle_slice,
+                axis_metrics,
+                alt.Title(
+                    f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
+                    **SLICE_TITLE_KWARGS,
+                ),
+                max_cols,
+                uncertainty,
+            ).properties(width=width, height=height)
+            for i, (_, triangle_slice) in enumerate(triangle.slices.items())
+        ],
+        title=main_title,
+        ncols=max_cols,
+    ).configure_axis(
+        **_compute_font_sizes(max_cols),
     )
     return fig.interactive()
 
 
 def _plot_broom(
-    triangle: Triangle, 
+    triangle: Triangle,
     axis_metrics: MetricFuncDict,
-    title: alt.Title, 
-    mark_scaler: int, 
-    uncertainty: bool
+    title: alt.Title,
+    mark_scaler: int,
+    uncertainty: bool,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
 
@@ -1066,12 +1087,10 @@ def _plot_broom(
                     **_calculate_field_summary(cell, prev_cell, func_x, name_x),
                     **_calculate_field_summary(cell, prev_cell, func_y, name_y),
                 }
-                for cell, prev_cell
-                in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
-
 
     color = (
         alt.Color("dev_lag:O")
@@ -1090,9 +1109,7 @@ def _plot_broom(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q")
-        .scale(domain=[0,101], nice=False)
-        .title(name_x),
+        x=alt.X(f"{name_x}:Q").scale(domain=[0, 101], nice=False).title(name_x),
         y=alt.Y(f"{name_y}:Q").title(name_y),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -1112,9 +1129,9 @@ def _plot_broom(
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1/mark_scaler).encode(
-        color=color_conditional, opacity=opacity_conditional
-    )
+    points = base.mark_point(
+        filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
+    ).encode(color=color_conditional, opacity=opacity_conditional)
     ultimates = (
         base.mark_point(size=300 / mark_scaler, opacity=1, filled=True, stroke="black")
         .encode(color=color_conditional)
@@ -1130,18 +1147,23 @@ def _plot_broom(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors + lines + wall, (points + ultimates).add_params(selector)).resolve_scale(
-        color="independent"
-    )
+    return alt.layer(
+        errors + lines + wall, (points + ultimates).add_params(selector)
+    ).resolve_scale(color="independent")
 
 
 def plot_drip(
-    triangle: Triangle, 
+    triangle: Triangle,
     axis_metrics: MetricFuncDict = {
-        "Reported Loss Ratio": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"],
-        "Open Claim Share": lambda cell: 100 * cell["open_claims"] / cell["reported_claims"],
+        "Reported Loss Ratio": lambda cell: 100
+        * cell["reported_loss"]
+        / cell["earned_premium"],
+        "Open Claim Share": lambda cell: 100
+        * cell["open_claims"]
+        / cell["reported_claims"],
     },
-    uncertainty: bool = True) -> alt.Chart:
+    uncertainty: bool = True,
+) -> alt.Chart:
     """Plot triangle metrics as a drip."""
     main_title = alt.Title(
         f"Triangle Drip Plot",
@@ -1177,7 +1199,11 @@ def plot_drip(
 
 
 def _plot_drip(
-    triangle: Triangle, axis_metrics: MetricFuncDict, title: alt.Title, mark_scaler: int, uncertainty: bool
+    triangle: Triangle,
+    axis_metrics: MetricFuncDict,
+    title: alt.Title,
+    mark_scaler: int,
+    uncertainty: bool,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
 
@@ -1192,8 +1218,7 @@ def _plot_drip(
                     **_calculate_field_summary(cell, prev_cell, func_x, name_x),
                     **_calculate_field_summary(cell, prev_cell, func_y, name_y),
                 }
-                for cell, prev_cell,
-                in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
@@ -1214,30 +1239,25 @@ def _plot_drip(
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
     )
 
-    base = (
-        alt.Chart(metric_data, title=title)
-        .encode(
-            x=alt.X(f"{name_x}:Q").title(name_x),
-            y=alt.Y(f"{name_y}:Q")
-            .title(name_y)
-            .scale(nice=False, domain=[-1, 101]),
-            tooltip=[
-                alt.Tooltip("period_start:T", title="Period Start"),
-                alt.Tooltip("period_end:T", title="Period End"),
-                alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-                alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
-                alt.Tooltip(f"{name_x}:Q", format=".1f"),
-                alt.Tooltip(f"{name_y}:Q", format=".1f"),
-            ],
-        )
+    base = alt.Chart(metric_data, title=title).encode(
+        x=alt.X(f"{name_x}:Q").title(name_x),
+        y=alt.Y(f"{name_y}:Q").title(name_y).scale(nice=False, domain=[-1, 101]),
+        tooltip=[
+            alt.Tooltip("period_start:T", title="Period Start"),
+            alt.Tooltip("period_end:T", title="Period End"),
+            alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
+            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip(f"{name_x}:Q", format=".1f"),
+            alt.Tooltip(f"{name_y}:Q", format=".1f"),
+        ],
     )
 
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler).encode(
-        color=color_conditional, opacity=opacity_conditional
-    )
+    points = base.mark_point(
+        filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
+    ).encode(color=color_conditional, opacity=opacity_conditional)
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
         .encode(color=color_conditional, opacity=opacity_conditional)
@@ -1253,16 +1273,27 @@ def _plot_drip(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors + lines, (points + ultimates).add_params(selector)).resolve_scale(color="independent")
+    return alt.layer(
+        errors + lines, (points + ultimates).add_params(selector)
+    ).resolve_scale(color="independent")
+
 
 def plot_hose(
-    triangle: Triangle, 
+    triangle: Triangle,
     axis_metrics: MetricFuncDict = {
-        "Reported Loss Ratio": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"],
-        "Incremental Paid Loss Ratio": lambda cell, prev_cell: 100 * (cell["paid_loss"] - prev_cell["paid_loss"]) / cell["earned_premium"],
+        "Reported Loss Ratio": lambda cell: 100
+        * cell["reported_loss"]
+        / cell["earned_premium"],
+        "Incremental Paid Loss Ratio": lambda cell, prev_cell: 100
+        * (cell["paid_loss"] - prev_cell["paid_loss"])
+        / cell["earned_premium"],
     },
-    uncertainty: bool = True) -> alt.Chart:
-    return plot_drip(triangle, axis_metrics, uncertainty).properties(title="Triangle Hose Plot")
+    uncertainty: bool = True,
+) -> alt.Chart:
+    return plot_drip(triangle, axis_metrics, uncertainty).properties(
+        title="Triangle Hose Plot"
+    )
+
 
 def _core_plot_data(cell: Cell) -> dict[str, Any]:
     return {
@@ -1274,13 +1305,17 @@ def _core_plot_data(cell: Cell) -> dict[str, Any]:
 
 
 def _calculate_field_summary(
-    cell: Cell, prev_cell: Cell | None, func: callable, name: str, probs: tuple[float, float] = (0.05, 0.95)
+    cell: Cell,
+    prev_cell: Cell | None,
+    func: callable,
+    name: str,
+    probs: tuple[float, float] = (0.05, 0.95),
 ):
     try:
         metric = func(cell, prev_cell)
         if prev_cell.period != cell.period:
             raise IndexError
-    except TypeError as e: 
+    except TypeError as e:
         if "takes 1 positional argument but 2 were given" in e.args[0]:
             metric = func(cell)
         if "'NoneType' object is not subscriptable" in e.args[0]:
@@ -1337,6 +1372,6 @@ def _concat_charts(charts: list[alt.Chart], ncols: int, **kwargs) -> alt.Chart:
     fig = alt.concat(*charts, columns=ncols, **kwargs)
     return fig
 
+
 def boxcox(x: float, p: float):
     return (x**p - 1) / p
-
