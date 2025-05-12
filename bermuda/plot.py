@@ -266,6 +266,7 @@ def plot_data_completeness(
             for i, (_, triangle_slice) in enumerate(triangle.slices.items())
         ],
         title=main_title,
+        ncols=max_cols,
     ).configure_axis(
         **_compute_font_sizes(n_slices),
     )
