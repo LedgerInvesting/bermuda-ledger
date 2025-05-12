@@ -252,7 +252,7 @@ def plot_data_completeness(
         "Triangle Completeness",
         subtitle="The number of fields available per cell",
     )
-    n_slices = triangle.slices
+    n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
     width = BASE_WIDTH if n_slices == 1 else width
     height = BASE_HEIGHT if n_slices == 1 else height
