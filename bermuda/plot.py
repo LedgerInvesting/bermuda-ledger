@@ -119,7 +119,7 @@ def _plot_right_edge(
                         func=lambda ob: ob[field] / ob["earned_premium"],
                         name="loss_ratio",
                     ),
-                    "Field": field.replace("_", " ").title(),
+                    "Field": field.replace("_loss", "").title() + " LR",
                 }
                 for cell in triangle.right_edge
                 for field in loss_fields
@@ -174,7 +174,7 @@ def _plot_right_edge(
             )
             .encode(
                 x=alt.X(f"yearmonth(period_start):T"),
-                y=alt.Y("loss_ratio_lower_ci:Q").axis(title=None, format="%"),
+                y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
                 y2=alt.Y2("loss_ratio_upper_ci:Q"),
                 color=alt.Color("Field:N"),
             )
@@ -182,10 +182,10 @@ def _plot_right_edge(
     elif show_uncertainty and uncertainty_type == "segments":
         loss_error = (
             alt.Chart(loss_data)
-            .mark_errorbar()
+            .mark_errorbar(thickness=3)
             .encode(
-                x=alt.X(f"yearmonth(period_start):T"),
-                y=alt.Y("loss_ratio_lower_ci:Q").axis(title=None, format="%"),
+                x=alt.X(f"yearmonth(period_start):T").title("Period Start"),
+                y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
                 y2=alt.Y2("loss_ratio_upper_ci:Q"),
                 color=alt.Color("Field:N"),
             )
@@ -204,7 +204,7 @@ def _plot_right_edge(
             ),
             y=alt.Y(
                 "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
-            ).title("Loss Ratio (%)"),
+            ).title("Loss Ratio %"),
             color=alt.Color("Field:N"),
         )
     )
@@ -222,7 +222,7 @@ def _plot_right_edge(
             ),
             y=alt.Y(
                 "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
-            ).title("Loss Ratio (%)"),
+            ),
             color=alt.Color("Field:N").legend(title=None),
             tooltip=[
                 alt.Tooltip("period_start:T", title="Period Start"),
@@ -405,10 +405,10 @@ def _plot_heatmap(
             *[
                 {
                     **_core_plot_data(cell),
-                    **_calculate_field_summary(cell, None, metric, "metric"),
+                    **_calculate_field_summary(cell, prev_cell, metric, "metric"),
                     "Field": name,
                 }
-                for cell in triangle
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
             ]
         ]
     )
@@ -447,8 +447,9 @@ def _plot_heatmap(
         .add_params(selection)
     )
 
-    mean_metric = triangle.extract(lambda cell: np.mean(metric(cell))).mean()
-    sd_metric = triangle.extract(lambda cell: np.mean(metric(cell))).std()
+    metric = [v["metric"] for v in metric_data.values if v["metric"] is not None]
+    mean_metric = np.mean(metric)
+    sd_metric = np.std(metric)
     text_color_predicate = f"datum.metric > {(mean_metric + 2 * sd_metric)} || datum.metric < {(mean_metric - 2 * sd_metric)}"
     text = base.mark_text(
         fontSize=BASE_AXIS_TITLE_FONT_SIZE
@@ -462,6 +463,92 @@ def _plot_heatmap(
     )
 
     return heatmap + text
+
+
+def plot_atas(
+    triangle: Triangle,
+    metric_dict: MetricFuncDict = {
+        "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
+    },
+    ncols: int | None = None,
+    width: int = 400,
+    height: int = 200,
+) -> alt.Chart:
+    """Plot triangle ATAs."""
+    main_title = alt.Title(
+        f"Triangle ATAs",
+    )
+    n_metrics = len(metric_dict)
+    n_slices = len(triangle.slices)
+    max_cols = ncols or int(min(n_slices + n_metrics, np.ceil(np.sqrt(n_slices + n_metrics))))
+    width = BASE_WIDTH if n_slices == 1 and n_metrics == 1 else width
+    height = BASE_HEIGHT if n_slices == 1 and n_metrics == 1 else height
+    fig = (
+        _concat_charts(
+            [
+                _concat_charts(
+                    [
+                        _plot_atas(
+                            triangle_slice,
+                            metric,
+                            name,
+                            alt.Title(
+                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
+                                **SLICE_TITLE_KWARGS,
+                            ),
+                            n_slices,
+                        ).properties(width=width, height=height)
+                        for name, metric in metric_dict.items()
+                    ],
+                    ncols=min(max_cols, n_metrics),
+                ).resolve_scale(color="independent")
+                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
+            ],
+            title=main_title,
+            ncols=1 if n_metrics > 1 else max_cols,
+        )
+        .configure_axis(
+            **_compute_font_sizes(n_slices),
+        )
+        .resolve_scale(color="independent")
+    )
+    return fig
+
+
+def _plot_atas(triangle: Triangle, metric: MetricFunc, name: str, title: alt.Title, n_slices: int) -> alt.Chart:
+    metric_data = alt.Data(
+        values=[
+            *[
+                {
+                    **_core_plot_data(cell),
+                    **_calculate_field_summary(cell, prev_cell, metric, "metric"),
+                    "Field": name,
+                }
+                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
+            ]
+        ]
+    )
+
+
+    tooltip = [
+        alt.Tooltip("period_start:T", title="Period Start"),
+        alt.Tooltip("period_end:T", title="Period End"),
+        alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
+        alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+        alt.Tooltip("metric:Q", title=name, format=".2f"),
+    ]
+
+    base = alt.Chart(metric_data, title=title).encode(
+        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0)).title("Dev Lag (months)"),
+        y=alt.X("metric:Q").title(name),
+        tooltip=tooltip,
+    )
+
+    points = base.mark_point(color="black", filled=True)
+    boxplot = base.mark_boxplot(opacity=0.7, color="skyblue", median=alt.MarkConfig(stroke="black"), rule=alt.MarkConfig(stroke="black"), box=alt.MarkConfig(stroke="black")).encode()
+
+    return points + boxplot
+
 
 
 def plot_growth_curve(
@@ -974,8 +1061,8 @@ def _plot_ballistic(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q").title(name_x),
-        y=alt.X(f"{name_y}:Q").title(name_y),
+        x=alt.X(f"{name_x}:Q").title(name_x).axis(grid=True),
+        y=alt.X(f"{name_y}:Q").title(name_y).axis(grid=True),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
@@ -987,13 +1074,11 @@ def _plot_ballistic(
     )
 
     diagonal = (
-        alt.Chart()
-        .mark_rule(color="black", strokeDash=[5, 5])
+        alt.Chart(metric_data)
+        .mark_line(color="black", strokeDash=[5, 5])
         .encode(
-            x=alt.value(0),
-            x2=alt.value("width"),
-            y=alt.value("height"),
-            y2=alt.value(0),
+            x=f"{name_x}:Q",
+            y=f"{name_x}:Q",
         )
     )
 
@@ -1020,7 +1105,7 @@ def _plot_ballistic(
 
     return alt.layer(
         diagonal, errors + lines, (points + ultimates).add_params(selector)
-    ).resolve_scale(color="independent")
+    ).resolve_scale(color="independent").interactive()
 
 
 def plot_broom(
@@ -1308,31 +1393,30 @@ def _core_plot_data(cell: Cell) -> dict[str, Any]:
 def _calculate_field_summary(
     cell: Cell,
     prev_cell: Cell | None,
-    func: callable,
+    func: MetricFunc,
     name: str,
     probs: tuple[float, float] = (0.05, 0.95),
 ):
+    none_dict = {
+        f"{name}": None,
+        f"{name}_sd": None,
+        f"{name}_lower_ci": None,
+        f"{name}_upper_ci": None,
+    }
     try:
         metric = func(cell, prev_cell)
         if prev_cell.period != cell.period:
             raise IndexError
     except TypeError as e:
         if "takes 1 positional argument but 2 were given" in e.args[0]:
-            metric = func(cell)
-        if "'NoneType' object is not subscriptable" in e.args[0]:
-            return {
-                f"{name}": None,
-                f"{name}_sd": None,
-                f"{name}_lower_ci": None,
-                f"{name}_upper_ci": None,
-            }
+            try:
+                metric = func(cell)
+            except Exception:
+                return none_dict
+        elif "'NoneType' object is not subscriptable" in e.args[0]:
+            return none_dict
     except Exception:
-        return {
-            f"{name}": None,
-            f"{name}_sd": None,
-            f"{name}_lower_ci": None,
-            f"{name}_upper_ci": None,
-        }
+        return none_dict
 
     if np.isscalar(metric) or len(metric) == 1:
         return {

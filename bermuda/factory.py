@@ -42,6 +42,7 @@ from .plot import (
     plot_data_completeness,
     plot_right_edge,
     plot_heatmap,
+    plot_atas,
     plot_growth_curve,
     plot_mountain,
     plot_sunset,
@@ -147,6 +148,9 @@ Triangle.plot_data_completeness = wraps(plot_data_completeness)(
 )
 Triangle.plot_heatmap = wraps(plot_heatmap)(
     lambda self, *args, **kwargs: plot_heatmap(self, *args, **kwargs)
+)
+Triangle.plot_atas = wraps(plot_atas)(
+    lambda self, *args, **kwargs: plot_atas(self, *args, **kwargs)
 )
 Triangle.plot_growth_curve = wraps(plot_growth_curve)(
     lambda self, *args, **kwargs: plot_growth_curve(self, *args, **kwargs)

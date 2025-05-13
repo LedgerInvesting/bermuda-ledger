@@ -72,6 +72,8 @@ def test_plot_heatmap():
     (test + test2).plot_heatmap().show()
     (test + test2 + test3 + test4 + test5).plot_heatmap().show()
     (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6}).show()
+    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]}).show()
+    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]}).show()
 
 def test_plot_heatmap_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -84,6 +86,22 @@ def test_plot_heatmap_with_predictions():
 
     test_predictions.plot_heatmap().show()
     test_predictions.plot_heatmap({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
+
+
+def test_plot_atas():
+    test = meyers_tri.derive_metadata(id=1).derive_fields(
+        incurred_loss = lambda cell: cell["reported_loss"],
+        reported_claims = lambda cell: cell["reported_loss"],
+    )
+    test2 = test.derive_metadata(id=2)
+    (test + test2).plot_atas(
+        {
+            "Paid": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"], 
+            "Reported": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]
+        }, 
+        width=500, height=200,
+    ).show()
+
 
 def test_plot_growth_curve():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
