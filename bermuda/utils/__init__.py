@@ -11,6 +11,7 @@ from .fill import *
 from .join import *
 from .merge import *
 from .method_moments import *
+from .premium_pattern import *
 from .shift_origin import *
 from .slice import *
 from .summarize import *
