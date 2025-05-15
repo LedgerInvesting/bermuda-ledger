@@ -678,7 +678,7 @@ def _plot_growth_curve(
         errors = base.mark_errorbar(thickness=5).encode(
             y=alt.Y("metric_lower_ci:Q").axis(title=name),
             y2=alt.Y2("metric_upper_ci:Q"),
-            color=conditional_no_legend,
+            color=color_conditional_no_legend,
             opacity=opacity_conditional,
         )
     else:

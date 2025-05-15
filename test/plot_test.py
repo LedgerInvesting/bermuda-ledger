@@ -16,9 +16,9 @@ def test_plot_data_completeness():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test2.plot_data_completeness().show()
-    (test + test2).plot_data_completeness().show()
-    (test + test2 + test3 + test4 + test5).plot_data_completeness().show()
+    test2.plot_data_completeness()
+    (test + test2).plot_data_completeness()
+    (test + test2 + test3 + test4 + test5).plot_data_completeness()
 
 def test_plot_data_completeness_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -29,7 +29,7 @@ def test_plot_data_completeness_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_data_completeness().show()
+    test_predictions.plot_data_completeness()
 
     
 def test_plot_right_edge():
@@ -40,9 +40,9 @@ def test_plot_right_edge():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_right_edge().show()
-    (test + test2).plot_right_edge().show()
-    (test + test2 + test3 + test4 + test5).plot_right_edge().show()
+    test.plot_right_edge()
+    (test + test2).plot_right_edge()
+    (test + test2 + test3 + test4 + test5).plot_right_edge()
 
 
 def test_plot_right_edge_with_predictions():
@@ -54,8 +54,8 @@ def test_plot_right_edge_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_right_edge(show_uncertainty=True, uncertainty_type="ribbon").show()
-    test_predictions.plot_right_edge(show_uncertainty=True, uncertainty_type="segments").show()
+    test_predictions.plot_right_edge(show_uncertainty=True, uncertainty_type="ribbon")
+    test_predictions.plot_right_edge(show_uncertainty=True, uncertainty_type="segments")
 
     
 def test_plot_heatmap():
@@ -67,13 +67,13 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6, "Incurred LR": lambda cell: cell["incurred_loss"] / cell["earned_premium"], "Reported Claims": lambda cell: cell["reported_claims"] / 1e6}).show()
-    (test + test2 + test3).plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6}, ncols=3).show()
-    (test + test2).plot_heatmap().show()
-    (test + test2 + test3 + test4 + test5).plot_heatmap().show()
-    (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6}).show()
-    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]}).show()
-    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]}).show()
+    test.plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6, "Incurred LR": lambda cell: cell["incurred_loss"] / cell["earned_premium"], "Reported Claims": lambda cell: cell["reported_claims"] / 1e6})
+    (test + test2 + test3).plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6}, ncols=3)
+    (test + test2).plot_heatmap()
+    (test + test2 + test3 + test4 + test5).plot_heatmap()
+    (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6})
+    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]})
+    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]})
 
 def test_plot_heatmap_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -84,8 +84,8 @@ def test_plot_heatmap_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_heatmap().show()
-    test_predictions.plot_heatmap({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
+    test_predictions.plot_heatmap()
+    test_predictions.plot_heatmap({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
 def test_plot_atas():
@@ -100,7 +100,7 @@ def test_plot_atas():
             "Reported": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]
         }, 
         width=500, height=200,
-    ).show()
+    )
 
 
 def test_plot_growth_curve():
@@ -112,8 +112,8 @@ def test_plot_growth_curve():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_growth_curve().show()
-    test.plot_growth_curve({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
+    test.plot_growth_curve()
+    test.plot_growth_curve({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
 def test_plot_growth_curve_with_predictions():
@@ -125,9 +125,9 @@ def test_plot_growth_curve_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_growth_curve().show()
-    test_predictions.plot_growth_curve(uncertainty_type = "segments").show()
-    test_predictions.plot_growth_curve({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
+    test_predictions.plot_growth_curve()
+    test_predictions.plot_growth_curve(uncertainty_type = "segments")
+    test_predictions.plot_growth_curve({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
 def test_plot_mountain():
@@ -139,10 +139,10 @@ def test_plot_mountain():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_mountain().show()
-    (test + test2 + test3 + test4 + test5).plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
-    test.plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
-    test.plot_mountain({"Paid/Reported LR": lambda cell: 100 * (cell["paid_loss"] / cell["earned_premium"]) / (cell["reported_loss"] / cell["earned_premium"])}).show()
+    test.plot_mountain()
+    (test + test2 + test3 + test4 + test5).plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
+    test.plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
+    test.plot_mountain({"Paid/Reported LR": lambda cell: 100 * (cell["paid_loss"] / cell["earned_premium"]) / (cell["reported_loss"] / cell["earned_premium"])})
 
 
 def test_plot_mountain_with_predictions():
@@ -154,9 +154,9 @@ def test_plot_mountain_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.dev_lag() < 108 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_mountain().show()
-    test_predictions.plot_mountain(uncertainty_type = "segments").show()
-    test_predictions.plot_mountain({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]}).show()
+    test_predictions.plot_mountain()
+    test_predictions.plot_mountain(uncertainty_type = "segments")
+    test_predictions.plot_mountain({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 def test_plot_ballistic():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -167,8 +167,8 @@ def test_plot_ballistic():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_ballistic().show()
-    (test + test2 + test3 + test4 + test5).plot_ballistic(ncols=2, width=500, height=300).show()
+    test.plot_ballistic()
+    (test + test2 + test3 + test4 + test5).plot_ballistic(ncols=2, width=500, height=300)
 
 
 def test_plot_ballistic_with_predictions():
@@ -180,7 +180,7 @@ def test_plot_ballistic_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_ballistic().show()
+    test_predictions.plot_ballistic()
 
 def test_plot_broom():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -191,9 +191,9 @@ def test_plot_broom():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_broom().show()
-    test.plot_broom(rule=None).show()
-    (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300).show()
+    test.plot_broom()
+    test.plot_broom(rule=None)
+    (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300)
 
 
 def test_plot_broom_with_predictions():
@@ -205,7 +205,7 @@ def test_plot_broom_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_broom().show()
+    test_predictions.plot_broom()
 
 def test_plot_drip():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -217,8 +217,8 @@ def test_plot_drip():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_drip().show()
-    (test + test2 + test3 + test4 + test5).plot_drip().show()
+    test.plot_drip()
+    (test + test2 + test3 + test4 + test5).plot_drip()
 
 
 def test_plot_drip_with_predictions():
@@ -232,7 +232,7 @@ def test_plot_drip_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_drip().show()
+    test_predictions.plot_drip()
 
 def test_plot_hose():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -244,8 +244,8 @@ def test_plot_hose():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_hose().show()
-    (test + test2 + test3 + test4 + test5).plot_hose().show()
+    test.plot_hose()
+    (test + test2 + test3 + test4 + test5).plot_hose()
 
 def test_plot_sunset():
     test = meyers_tri.derive_metadata(id=1)
@@ -253,8 +253,8 @@ def test_plot_sunset():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_sunset().show()
-    (test + test2 + test3 + test4 + test5).plot_sunset().show()
+    test.plot_sunset()
+    (test + test2 + test3 + test4 + test5).plot_sunset()
 
 def test_plot_sunset_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -265,6 +265,6 @@ def test_plot_sunset_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_sunset().show()
-    test_predictions.plot_sunset(uncertainty_type = "segments").show()
+    test_predictions.plot_sunset()
+    test_predictions.plot_sunset(uncertainty_type = "segments")
 

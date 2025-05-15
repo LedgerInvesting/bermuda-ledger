@@ -9,10 +9,7 @@ from typing import Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
-import plotly as plt
-import plotly.graph_objects as go
 import toolz as tlz
-from plotly.subplots import make_subplots
 
 import altair as alt
 
@@ -687,131 +684,6 @@ class Triangle(abc.Set):
             if len(slc.right_edge.evaluation_dates) > 1:
                 return True
         return False
-
-    def plot_right_edge(self) -> plt.Figure | None:
-        """Plot the right edge of the triangle.
-
-        Returns:
-            A plot with historical earned premium bars and lines for historical paid and
-            reported losses.
-        """
-        if not (
-            "earned_premium" in self.fields
-            and ("paid_loss" in self.fields or "reported_loss" in self.fields)
-        ):
-            raise ValueError(
-                "Triangle must contain earned_premium and either paid or reported loss fields "
-                f"in order to plot right edge. This triangle contains {self.fields}"
-            )
-        cell_data = [
-            (
-                cell.period_start,
-                (
-                    100 * cell["paid_loss"] / cell["earned_premium"]
-                    if "paid_loss" in cell
-                    else None
-                ),
-                (
-                    100 * cell["reported_loss"] / cell["earned_premium"]
-                    if "reported_loss" in cell
-                    else None
-                ),
-                cell["earned_premium"],
-            )
-            for cell in self.right_edge
-            if "earned_premium" in cell
-        ]
-        periods, paid_LR, reported_LR, EP = zip(*cell_data)
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-        if any([LR is not None for LR in paid_LR]):
-            fig.add_trace(
-                go.Scatter(
-                    x=periods,
-                    y=paid_LR,
-                    mode="lines+markers",
-                    name="Paid LR",
-                    hovertemplate="%{x|%B %Y}<br />Paid LR: %{y:.01f}%",
-                ),
-                secondary_y=True,
-            )
-        if any([LR is not None for LR in reported_LR]):
-            fig.add_trace(
-                go.Scatter(
-                    x=periods,
-                    y=reported_LR,
-                    mode="lines+markers",
-                    name="Reported LR",
-                    hovertemplate="%{x|%B %Y}<br />Reported LR: %{y:.01f}%",
-                ),
-                secondary_y=True,
-            )
-        fig.add_trace(
-            go.Bar(
-                x=periods,
-                y=EP,
-                marker_color="lightgrey",
-                name="Earned Premium",
-                hovertemplate="%{x|%B %Y}<br />Premium: $%{y:.3s}",
-            ),
-            secondary_y=False,
-        )
-        fig.update_xaxes(gridcolor="lightgrey", title_text="Accident Period")
-        # Force nonnegative y-axes
-        fig.update_yaxes(
-            title_text="Earned Premium",
-            rangemode="nonnegative",
-            showgrid=False,
-            secondary_y=False,
-        )
-        fig.update_yaxes(
-            title_text="Loss Ratio", rangemode="nonnegative", secondary_y=True
-        )
-        # Add title
-        fig.update_layout(title="Triangle Most Recent Diagonal (UNDEVELOPED)")
-        return fig
-
-    def plot_data_completeness_old(self) -> go.Figure:
-        """Plot the coordinates of each cell in the Triangle along with metric coverage information.
-
-        Returns:
-            A scatterplot where each dot is a cell, the x-axis is development lags, the y-axis is
-            experience periods, and the color is the number of distinct metrics in the cell.
-        """
-        if not self.is_disjoint:
-            raise Exception(
-                "This triangle isn't disjoint! You probably don't want to use it"
-            )
-        if not self.is_semi_regular:
-            raise Exception(
-                "This triangle isn't semi-regular! You probably don't want to use it"
-            )
-        cell_data = [
-            (cell.period_start, cell.dev_lag(), len(cell.values)) for cell in self
-        ]
-        periods, dev_lags, num_values = zip(*cell_data)
-        fig = go.Figure(
-            data=go.Scatter(
-                y=periods,
-                x=dev_lags,
-                mode="markers",
-                marker={
-                    "size": 15,
-                    "color": num_values,
-                    "colorscale": "blackbody",
-                    "colorbar": {"title": "Field Count"},
-                },
-            )
-        )
-        fig.update_traces(
-            hovertemplate="%{y}<br />Lag %{x} Months<br />%{marker.color} Values<extra></extra>"
-        )
-        fig.update_layout(
-            yaxis=dict(autorange="reversed"),
-            title="Triangle Completeness",
-            xaxis_title="Development Lag (Months)",
-            yaxis_title="Experience Period Start",
-        )
-        return fig
 
 
 class TriangleSlice(Triangle):
