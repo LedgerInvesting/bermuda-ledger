@@ -10,3 +10,4 @@ of how to use Bermuda for common use-cases.
     triangle-manipulation.rst
     input-output.rst
     quantities.rst
+    plots.rst

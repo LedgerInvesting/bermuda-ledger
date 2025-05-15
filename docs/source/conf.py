@@ -41,6 +41,7 @@ extensions = [
     "sphinx_wagtail_theme",
     "sphinx_copybutton",
     "nbsphinx",
+    "sphinxext_altair.altairplot",
 ]
 
 # The suffix(es) of source filenames

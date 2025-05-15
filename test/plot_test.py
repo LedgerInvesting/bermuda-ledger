@@ -192,6 +192,7 @@ def test_plot_broom():
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
     test.plot_broom().show()
+    test.plot_broom(rule=None).show()
     (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300).show()
 
 

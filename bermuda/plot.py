@@ -70,8 +70,6 @@ def plot_right_edge(
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 else height
     fig = _concat_charts(
         [
             _plot_right_edge(
@@ -86,11 +84,7 @@ def plot_right_edge(
         title=main_title,
         ncols=max_cols,
     )
-    return fig.configure_axis(
-        **_compute_font_sizes(n_slices),
-    ).configure_legend(
-        **_compute_font_sizes(n_slices),
-    )
+    return fig
 
 
 def _plot_right_edge(
@@ -153,9 +147,9 @@ def _plot_right_edge(
         alt.Chart(premium_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"yearmonth(period_start):O"),
-            y=alt.Y("Earned Premium:Q"),
-            color=alt.Color("Field:N").scale(range=["lightgray"]),
+            x=alt.X(f"yearmonth(period_start):O").axis(**_compute_font_sizes(mark_scaler)),
+            y=alt.Y("Earned Premium:Q").axis(**_compute_font_sizes(mark_scaler)),
+            color=alt.Color("Field:N").scale(range=["lightgray"]).legend(**_compute_font_sizes(mark_scaler)),
             tooltip=[
                 alt.Tooltip("period_start:T", title="Period Start"),
                 alt.Tooltip("period_end:T", title="Period End"),
@@ -199,20 +193,20 @@ def _plot_right_edge(
             size=1,
         )
         .encode(
-            x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+            x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0, **_compute_font_sizes(mark_scaler))).title(
                 "Period Start"
             ),
             y=alt.Y(
-                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
+                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%", **_compute_font_sizes(mark_scaler))
             ).title("Loss Ratio %"),
-            color=alt.Color("Field:N"),
+            color=alt.Color("Field:N").legend(**_compute_font_sizes(mark_scaler)),
         )
     )
 
     points = (
         alt.Chart(loss_data)
         .mark_point(
-            size=max(20, 100 * 1 / mark_scaler),
+            size=max(20, 100 / mark_scaler),
             filled=True,
             opacity=1,
         )
@@ -245,17 +239,15 @@ def _plot_right_edge(
 def plot_data_completeness(
     triangle: Triangle,
     width: int = 400,
-    height: int = 200,
+    height: int = 300,
     ncols: int | None = None,
 ) -> alt.Chart:
     main_title = alt.Title(
         "Triangle Completeness",
-        subtitle="The number of fields available per cell",
+        subtitle="The number of data fields available per cell",
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 else height
     fig = _concat_charts(
         [
             _plot_data_completeness(
@@ -359,8 +351,6 @@ def plot_heatmap(
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 and n_metrics == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 and n_metrics == 1 else height
     fig = (
         _concat_charts(
             [
@@ -481,8 +471,6 @@ def plot_atas(
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices + n_metrics, np.ceil(np.sqrt(n_slices + n_metrics))))
-    width = BASE_WIDTH if n_slices == 1 and n_metrics == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 and n_metrics == 1 else height
     fig = (
         _concat_charts(
             [
@@ -539,13 +527,13 @@ def _plot_atas(triangle: Triangle, metric: MetricFunc, name: str, title: alt.Tit
     ]
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0)).title("Dev Lag (months)"),
-        y=alt.X("metric:Q").title(name),
+        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0)).title("Dev Lag (months)").scale(padding=10),
+        y=alt.X("metric:Q").title(name).scale(zero=False, padding=10),
         tooltip=tooltip,
     )
 
     points = base.mark_point(color="black", filled=True)
-    boxplot = base.mark_boxplot(opacity=0.7, color="skyblue", median=alt.MarkConfig(stroke="black"), rule=alt.MarkConfig(stroke="black"), box=alt.MarkConfig(stroke="black")).encode()
+    boxplot = base.mark_boxplot(opacity=0.7, color="skyblue", median=alt.MarkConfig(stroke="black"), rule=alt.MarkConfig(stroke="black"), box=alt.MarkConfig(stroke="black"))
 
     return points + boxplot
 
@@ -559,7 +547,7 @@ def plot_growth_curve(
     uncertainty: bool = True,
     uncertainty_type: str = "ribbon",
     width: int = 400,
-    height: int = 200,
+    height: int = 300,
     ncols: int | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a growth curve."""
@@ -568,9 +556,7 @@ def plot_growth_curve(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 and n_metrics == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 and n_metrics == 1 else height
+    max_cols = ncols or int(min(n_slices + n_metrics, np.ceil(np.sqrt(n_slices + n_metrics))))
     fig = (
         _concat_charts(
             [
@@ -592,7 +578,7 @@ def plot_growth_curve(
                         .resolve_scale(color="independent")
                         for name, metric in metric_dict.items()
                     ],
-                    ncols=min(max_cols, n_metrics),
+                    ncols=max_cols,
                 ).resolve_scale(color="independent")
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
@@ -600,7 +586,10 @@ def plot_growth_curve(
             ncols=1 if n_metrics > 1 else max_cols,
         )
         .configure_axis(
-            **_compute_font_sizes(n_slices),
+            **_compute_font_sizes(max_cols),
+        )
+        .configure_legend(
+            **_compute_font_sizes(max_cols),
         )
         .resolve_scale(color="independent")
     )
@@ -640,16 +629,19 @@ def _plot_growth_curve(
     color_none = color.legend(None)
 
     selector = alt.selection_point(fields=["period_start"])
-    conditional = alt.when(selector).then(color).otherwise(alt.value("lightgray"))
-    conditional_no_legend = (
+    color_conditional = alt.when(selector).then(color).otherwise(alt.value("lightgray"))
+    color_conditional_no_legend = (
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
+    )
+    opacity_conditional = (
+        alt.when(selector).then(alt.OpacityValue(1)).otherwise(alt.OpacityValue(0.2))
     )
 
     base = alt.Chart(metric_data, title=title).encode(
         x=alt.X("dev_lag:O", axis=alt.Axis(grid=True, labelAngle=0)).title(
             "Dev Lag (months)"
-        ),
-        y=alt.X("metric:Q").title(name),
+        ).scale(nice=False, padding=10),
+        y=alt.X("metric:Q").title(name).scale(padding=10),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
@@ -659,29 +651,35 @@ def _plot_growth_curve(
         ],
     )
 
-    lines = base.mark_line().encode(color=conditional_no_legend)
+    lines = base.mark_line().encode(color=color_conditional_no_legend, opacity=opacity_conditional)
     points = base.mark_point(stroke="black", filled=True).encode(
-        color=conditional_no_legend
+        color=color_conditional_no_legend,
+        opacity=opacity_conditional,
     )
     ultimates = (
-        base.mark_point(size=300 / n_metrics, opacity=1, filled=True, stroke="black")
-        .encode(color=conditional)
+        base.mark_point(size=300 / n_metrics, filled=True, stroke="black")
+        .encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
 
     if uncertainty and uncertainty_type == "ribbon":
+        ribbon_opacity_conditional = (
+            alt.when(selector).then(alt.OpacityValue(0.5)).otherwise(alt.OpacityValue(0.2))
+        )
         errors = base.mark_area(
             opacity=0.5,
         ).encode(
             y=alt.Y("metric_lower_ci:Q"),
             y2=alt.Y2("metric_upper_ci:Q"),
-            color=conditional_no_legend,
+            color=color_conditional_no_legend,
+            opacity=ribbon_opacity_conditional,
         )
     elif uncertainty and uncertainty_type == "segments":
         errors = base.mark_errorbar(thickness=5).encode(
             y=alt.Y("metric_lower_ci:Q").axis(title=name),
             y2=alt.Y2("metric_upper_ci:Q"),
             color=conditional_no_legend,
+            opacity=opacity_conditional,
         )
     else:
         errors = alt.LayerChart()
@@ -709,8 +707,6 @@ def plot_sunset(
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 and n_metrics == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 and n_metrics == 1 else height
     fig = (
         _concat_charts(
             [
@@ -854,8 +850,6 @@ def plot_mountain(
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 and n_metrics == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 and n_metrics == 1 else height
     fig = (
         _concat_charts(
             [
@@ -925,8 +919,11 @@ def _plot_mountain(
     color_none = color.legend(None)
 
     selector = alt.selection_point(fields=["dev_lag"])
-    conditional = alt.when(selector).then(color).otherwise(alt.value("lightgray"))
-    conditional_no_legend = (
+    opacity_conditional = (
+        alt.when(selector).then(alt.OpacityValue(1)).otherwise(alt.OpacityValue(0.2))
+    )
+    color_conditional = alt.when(selector).then(color).otherwise(alt.value("lightgray"))
+    color_conditional_no_legend = (
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
     )
 
@@ -944,29 +941,35 @@ def _plot_mountain(
         ],
     )
 
-    lines = base.mark_line().encode(color=conditional_no_legend)
-    points = base.mark_point(opacity=1, filled=True, stroke="black").encode(
-        color=conditional
+    lines = base.mark_line().encode(color=color_conditional_no_legend, opacity=opacity_conditional)
+    points = base.mark_point(filled=True, stroke="black").encode(
+        color=color_conditional, opacity=opacity_conditional,
     )
     ultimates = (
-        base.mark_point(size=300 / n_metrics, opacity=1, filled=True, stroke="black")
-        .encode(color=conditional_no_legend)
+        base.mark_point(size=300 / n_metrics, filled=True, stroke="black")
+        .encode(color=color_conditional_no_legend, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
 
     if uncertainty and uncertainty_type == "ribbon":
+        ribbon_conditional = (
+            alt.when(selector)
+            .then(alt.OpacityValue(0.5))
+            .otherwise(alt.OpacityValue(0.2))
+        )
         errors = base.mark_area(
-            opacity=0.5,
         ).encode(
             y=alt.Y("metric_lower_ci:Q"),
             y2=alt.Y2("metric_upper_ci:Q"),
-            color=conditional_no_legend,
+            color=color_conditional_no_legend,
+            opacity=ribbon_conditional,
         )
     elif uncertainty and uncertainty_type == "segments":
         errors = base.mark_errorbar(thickness=5).encode(
             y=alt.Y("metric_lower_ci:Q").axis(title=name),
             y2=alt.Y2("metric_upper_ci:Q"),
-            color=conditional_no_legend,
+            color=color_conditional_no_legend,
+            opacity=opacity_conditional,
         )
     else:
         errors = alt.LayerChart()
@@ -995,8 +998,6 @@ def plot_ballistic(
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 else height
     fig = _concat_charts(
         [
             _plot_ballistic(
@@ -1111,13 +1112,13 @@ def _plot_ballistic(
 def plot_broom(
     triangle: Triangle,
     axis_metrics: MetricFuncDict = {
-        "Paid/Reported Ratio": lambda cell: 100
-        * cell["paid_loss"]
+        "Paid/Reported Ratio": lambda cell: cell["paid_loss"]
         / cell["reported_loss"],
         "Paid Loss Ratio": lambda cell: 100
         * cell["paid_loss"]
         / cell["earned_premium"],
     },
+    rule: int | None = 1,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 200,
@@ -1129,8 +1130,6 @@ def plot_broom(
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    width = BASE_WIDTH if n_slices == 1 else width
-    height = BASE_HEIGHT if n_slices == 1 else height
     fig = _concat_charts(
         [
             _plot_broom(
@@ -1142,6 +1141,7 @@ def plot_broom(
                 ),
                 max_cols,
                 uncertainty,
+                rule,
             ).properties(width=width, height=height)
             for i, (_, triangle_slice) in enumerate(triangle.slices.items())
         ],
@@ -1159,6 +1159,7 @@ def _plot_broom(
     title: alt.Title,
     mark_scaler: int,
     uncertainty: bool,
+    rule: int | None,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
 
@@ -1195,7 +1196,7 @@ def _plot_broom(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q").scale(domain=[0, 101], nice=False).title(name_x),
+        x=alt.X(f"{name_x}:Q").scale(padding=10, nice=False).title(name_x),
         y=alt.Y(f"{name_y}:Q").title(name_y),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -1210,17 +1211,19 @@ def _plot_broom(
     wall = (
         alt.Chart()
         .mark_rule(strokeDash=[12, 5], opacity=0.5, strokeWidth=2)
-        .encode(x=alt.datum(100))
-    )
+    ).encode()
+    if rule is not None:
+        wall = wall.encode(x=alt.datum(rule))
+
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
     points = base.mark_point(
         filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
-    ).encode(color=color_conditional, opacity=opacity_conditional)
+    ).encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
     ultimates = (
-        base.mark_point(size=300 / mark_scaler, opacity=1, filled=True, stroke="black")
-        .encode(color=color_conditional)
+        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        .encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
 
@@ -1248,6 +1251,8 @@ def plot_drip(
         * cell["open_claims"]
         / cell["reported_claims"],
     },
+    width: int = 400,
+    height: int = 300,
     uncertainty: bool = True,
 ) -> alt.Chart:
     """Plot triangle metrics as a drip."""
@@ -1256,8 +1261,6 @@ def plot_drip(
     )
     n_slices = len(triangle.slices)
     max_cols = 3
-    width = BASE_WIDTH if n_slices == 1 else 400 * 3 / max_cols
-    height = BASE_HEIGHT if n_slices == 1 else 200 * 3 / max_cols
     fig = (
         _concat_charts(
             [
@@ -1326,8 +1329,8 @@ def _plot_drip(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q").title(name_x),
-        y=alt.Y(f"{name_y}:Q").title(name_y).scale(nice=False, domain=[-1, 101]),
+        x=alt.X(f"{name_x}:Q").title(name_x, padding=10),
+        y=alt.Y(f"{name_y}:Q").title(name_y).scale(nice=False, padding=10),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
@@ -1367,16 +1370,18 @@ def _plot_drip(
 def plot_hose(
     triangle: Triangle,
     axis_metrics: MetricFuncDict = {
-        "Reported Loss Ratio": lambda cell: 100
-        * cell["reported_loss"]
+        "Paid Loss Ratio": lambda cell: 100
+        * cell["paid_loss"]
         / cell["earned_premium"],
         "Incremental Paid Loss Ratio": lambda cell, prev_cell: 100
         * (cell["paid_loss"] - prev_cell["paid_loss"])
         / cell["earned_premium"],
     },
+    width: int = 400,
+    height: int = 300,
     uncertainty: bool = True,
 ) -> alt.Chart:
-    return plot_drip(triangle, axis_metrics, uncertainty).properties(
+    return plot_drip(triangle, axis_metrics, width, height, uncertainty).properties(
         title="Triangle Hose Plot"
     )
 
