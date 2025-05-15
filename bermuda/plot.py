@@ -535,7 +535,7 @@ def _plot_atas(triangle: Triangle, metric: MetricFunc, name: str, title: alt.Tit
     points = base.mark_point(color="black", filled=True)
     boxplot = base.mark_boxplot(opacity=0.7, color="skyblue", median=alt.MarkConfig(stroke="black"), rule=alt.MarkConfig(stroke="black"), box=alt.MarkConfig(stroke="black"))
 
-    return points + boxplot
+    return (points + boxplot).interactive()
 
 
 
@@ -593,7 +593,7 @@ def plot_growth_curve(
         )
         .resolve_scale(color="independent")
     )
-    return fig.interactive()
+    return fig
 
 
 def _plot_growth_curve(
@@ -623,7 +623,7 @@ def _plot_growth_curve(
 
     color = (
         alt.Color("yearmonth(period_start):O")
-        .scale(scheme="blueorange")
+        .scale(scheme="viridis")
         .legend(title="Period Start")
     )
     color_none = color.legend(None)
@@ -684,7 +684,7 @@ def _plot_growth_curve(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors + lines + points, ultimates.add_params(selector))
+    return alt.layer(errors + lines + points, ultimates.add_params(selector)).interactive()
 
 
 def plot_sunset(
