@@ -141,10 +141,10 @@ loss ratio (named after the tendency for spread out at higher
 development lags as paid loss ratios develop towards ultimate).
 
 .. altair-plot::
-    triangle.plot_ballistic()
+   triangle.plot_ballistic()
 
 .. altair-plot::
-    triangle.plot_broom()
+   triangle.plot_broom()
 
 The hose plot displays incremental paid loss ratios
 against reported loss ratios. A common pattern is for
@@ -154,7 +154,7 @@ and slowly decay towards reported loss ratios, making
 the image of a hose spraying water.
 
 .. altair-plot::
-    triangle.plot_hose()
+   triangle.plot_hose()
 
 Rather than loss ratios, we can also look at claim count development
 patterns. The 'drip' plot shows the proportion of open claims ('open claim
@@ -306,7 +306,7 @@ As an example, here's the heatmap plot for multiple slices and multiple metrics.
            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
            "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
         },
-        width=300,
+        width=250,
         height=200,
     )
 
@@ -398,11 +398,21 @@ tools are the main methods.
 
 .. altair-plot::
 
-   triangle.plot_right_edge().configure_title(font="monospace").configure_axisX(
+   triangle.plot_right_edge().configure(
+       background="#eeeeee",
+    ).configure_title(
+       font="monospace"
+    ).configure_axisX(
        titleColor="blue",
        labelColor="green",
        tickColor="red",
-   )
+       labelFontSize=10,
+   ).configure_legend(
+       direction="horizontal",
+       orient="bottom",
+   ).configure_bar(
+       stroke="black",
+   ) 
 
 If a change doesn't take effect, it might be that the particular configuration
 has been set at a higher-precedence level of encodings, following Altair's order
@@ -417,13 +427,55 @@ Resolving scales in faceted plots
 In the faceted plot above showing growth curves by accident years,
 it is hard to compare across plots because they have different scales.
 Luckily, we can use Altair's ``resolve_scale`` method to share x- and y-axis
-scales across subplots.
+scales across subplots. We also make this plot easier to read by removing the facet
+titles and changing the legend positioning.
 
 .. altair-plot::
 
    triangle_predictions.derive_metadata(
        id = lambda cell: cell.period_start
-   ).plot_growth_curve(width=250, height=200, ncols=2).resolve_scale(
+   ).plot_growth_curve(
+       width=150, height=100, ncols=5, facet_titles=[""]*len(triangle.periods)
+   ).resolve_scale(
        x="shared", y="shared", 
+   ).resolve_axis(
+       y="shared"
+   ).properties(
+       background="#eeeeee",
+   ).configure_legend(
+       orient="top",
+       direction="horizontal",
+       titleFontSize=10,
+       labelFontSize=10,
+       offset=1,
+   ).configure_concat(
+       spacing=2,
    ).interactive()
+
+
+Users can also use the ``resolve_*`` functions to change how legend and color
+schemes are handled. For instance, the multi-slice and multi-metric
+heatmap plot shown above, there is a legend per plot and the color schemes
+are treated differently. That is, if you hover over equivalent loss ratio values,
+you'll see that the color schemes diverge in each plot.
+Instead, we might want to share the gradient across plots and
+have a single legend. This could be handled by the following: 
+
+.. altair-plot::
+
+   (triangle.derive_metadata(id=1) + triangle.derive_metadata(id=2)).plot_heatmap(
+       metric_dict = {
+           "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
+           "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
+        },
+        width=300,
+        height=200,
+    ).resolve_scale(
+        color="shared",
+    ).resolve_legend(
+        color="shared",
+    ).configure_legend(
+        direction="horizontal",
+        orient="top",
+    )
 

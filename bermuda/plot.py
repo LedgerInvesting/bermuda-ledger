@@ -83,6 +83,10 @@ def plot_right_edge(
         ],
         title=main_title,
         ncols=max_cols,
+    ).configure_axis(
+        **_compute_font_sizes(max_cols)
+    ).configure_legend(
+        **_compute_font_sizes(max_cols)
     )
     return fig
 
@@ -148,9 +152,9 @@ def _plot_right_edge(
         alt.Chart(premium_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"yearmonth(period_start):O").axis(**_compute_font_sizes(mark_scaler)),
-            y=alt.Y("Earned Premium:Q").axis(**_compute_font_sizes(mark_scaler)),
-            color=alt.Color("Field:N").scale(range=["lightgray"]).legend(**_compute_font_sizes(mark_scaler)),
+            x=alt.X(f"yearmonth(period_start):O"),
+            y=alt.Y("Earned Premium:Q"),
+            color=alt.Color("Field:N").scale(range=["lightgray"]),
             tooltip=[
                 alt.Tooltip("period_start:T", title="Period Start"),
                 alt.Tooltip("period_end:T", title="Period End"),
@@ -194,13 +198,13 @@ def _plot_right_edge(
             size=1,
         )
         .encode(
-            x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0, **_compute_font_sizes(mark_scaler))).title(
+            x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
                 "Period Start"
             ),
             y=alt.Y(
-                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%", **_compute_font_sizes(mark_scaler))
+                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
             ).title("Loss Ratio %"),
-            color=alt.Color("Field:N").legend(**_compute_font_sizes(mark_scaler)),
+            color=alt.Color("Field:N")
         )
     )
 
@@ -387,11 +391,16 @@ def plot_heatmap(
         metric_charts = []
         for name, metric in metric_dict.items():
             metric_title = alt.Title(f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}", **SLICE_TITLE_KWARGS)
-            metric_charts.append(
+            charts.append(
                 _plot_heatmap(triangle_slice, metric, name, metric_title, max_cols).properties(width=width, height=height)
             )
-        charts.append(_concat_charts(metric_charts, ncols=max_cols).resolve_scale(color="independent"))
-    fig = _concat_charts(charts, title=main_title, ncols=max_cols).configure_axis(**_compute_font_sizes(max_cols))
+    fig = _concat_charts(charts, title=main_title, ncols=max_cols).configure_axis(
+        **_compute_font_sizes(max_cols)
+    ).configure_legend(
+        **_compute_font_sizes(max_cols)
+    ).resolve_scale(
+        color="independent",
+    )
     return fig
 
 
@@ -562,6 +571,7 @@ def plot_growth_curve(
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a growth curve."""
     main_title = alt.Title(
@@ -569,7 +579,7 @@ def plot_growth_curve(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or _detemine_facet_cols(n_slices, n_metrics)
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _concat_charts(
             [
@@ -580,7 +590,7 @@ def plot_growth_curve(
                             metric,
                             name,
                             alt.Title(
-                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
+                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}" if facet_titles is None else facet_titles[i],
                                 **SLICE_TITLE_KWARGS,
                             ),
                             max_cols,
@@ -862,7 +872,7 @@ def plot_mountain(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or _determine_max_cols(n_slices * n_metrics)
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _concat_charts(
             [
@@ -1142,7 +1152,7 @@ def plot_broom(
         f"Triangle Broom Plot",
     )
     n_slices = len(triangle.slices)
-    max_cols = ncols or _determine_max_cols(n_slices)
+    max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _concat_charts(
         [
             _plot_broom(
@@ -1285,8 +1295,8 @@ def plot_drip(
                         f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
                         **SLICE_TITLE_KWARGS,
                     ),
-                    max_cols,
                     uncertainty,
+                    max_cols,
                 ).properties(width=width, height=height)
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
@@ -1305,8 +1315,8 @@ def _plot_drip(
     triangle: Triangle,
     axis_metrics: MetricFuncDict,
     title: alt.Title,
-    mark_scaler: int,
     uncertainty: bool,
+    mark_scaler: int,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
 
@@ -1390,11 +1400,12 @@ def plot_hose(
         "Incremental Paid Loss Ratio": lambda cell, prev_cell: 100
         * (cell["paid_loss"] / cell["earned_premium"] - prev_cell["paid_loss"] / prev_cell["earned_premium"])
     },
+    uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
-    uncertainty: bool = True,
+    ncols: int | None = None,
 ) -> alt.Chart:
-    return plot_drip(triangle, axis_metrics, width, height, uncertainty).properties(
+    return plot_drip(triangle, axis_metrics, uncertainty, width, height, ncols).properties(
         title="Triangle Hose Plot"
     )
 
@@ -1482,4 +1493,4 @@ def boxcox(x: float, p: float):
 
 def _determine_facet_cols(n: int): 
     """This is a replication of grDevices::n2mfrow in R"""
-    return min(n, int(np.ceil(n / np.sqrt(n))))
+    return int(min(n, np.ceil(n / np.sqrt(n))))
