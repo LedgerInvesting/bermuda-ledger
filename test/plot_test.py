@@ -59,14 +59,14 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    (test + test2).plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"]}).show() 
-    test.plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6, "Incurred LR": lambda cell: cell["incurred_loss"] / cell["earned_premium"], "Reported Claims": lambda cell: cell["reported_claims"] / 1e6}).show()
+    (test + test2).plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"]}) 
+    test.plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6, "Incurred LR": lambda cell: cell["incurred_loss"] / cell["earned_premium"], "Reported Claims": lambda cell: cell["reported_claims"] / 1e6})
     (test + test2 + test3).plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6}, ncols=3)
-    (test + test2).plot_heatmap().show()
-    (test + test2 + test3 + test4 + test5).plot_heatmap().show()
-    (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6}).show()
-    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]}).show()
-    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]}).show()
+    (test + test2).plot_heatmap()
+    (test + test2 + test3 + test4 + test5).plot_heatmap()
+    (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6})
+    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]})
+    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]})
 
 def test_plot_heatmap_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -102,7 +102,7 @@ def test_plot_growth_curve():
         reported_claims = lambda cell: cell["reported_loss"],
     )
     test2 = test.derive_metadata(id=2)
-    test.plot_growth_curve().show()
+    test.plot_growth_curve()
     (test + test2).plot_growth_curve()
     test.plot_growth_curve({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
@@ -153,8 +153,8 @@ def test_plot_ballistic():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_ballistic().show()
-    (test + test2 + test3 + test4 + test5).plot_ballistic(ncols=2, width=500, height=300).show()
+    test.plot_ballistic()
+    (test + test2 + test3 + test4 + test5).plot_ballistic(ncols=2, width=500, height=300)
 
 
 def test_plot_ballistic_with_predictions():
@@ -173,9 +173,9 @@ def test_plot_broom():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_broom().show()
-    test.plot_broom(rule=None).show()
-    (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300).show()
+    test.plot_broom()
+    test.plot_broom(rule=None)
+    (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300)
 
 
 def test_plot_broom_with_predictions():
