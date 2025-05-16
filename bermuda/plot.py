@@ -93,7 +93,7 @@ def _plot_right_edge(
     show_uncertainty: bool = True,
     uncertainty_type: str = "ribbon",
 ) -> alt.Chart:
-    if not "earned_premium" in triangle.fields:
+    if "earned_premium" not in triangle.fields:
         raise ValueError(
             "Triangle must contain `earned_premium` to plot its right edge. "
             f"This triangle contains {triangle.fields}"
@@ -140,13 +140,11 @@ def _plot_right_edge(
 
     currency = _currency_symbol(triangle)
 
-    selection = alt.selection_point()
-
     bar = (
         alt.Chart(premium_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"yearmonth(period_start):O"),
+            x=alt.X("yearmonth(period_start):O"),
             y=alt.Y("Earned Premium:Q"),
             color=alt.Color("Field:N").scale(range=["lightgray"]),
             tooltip=[
@@ -166,7 +164,7 @@ def _plot_right_edge(
                 opacity=0.5,
             )
             .encode(
-                x=alt.X(f"yearmonth(period_start):T"),
+                x=alt.X("yearmonth(period_start):T"),
                 y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
                 y2=alt.Y2("loss_ratio_upper_ci:Q"),
                 color=alt.Color("Field:N"),
@@ -177,7 +175,7 @@ def _plot_right_edge(
             alt.Chart(loss_data)
             .mark_errorbar(thickness=3)
             .encode(
-                x=alt.X(f"yearmonth(period_start):T").title("Period Start"),
+                x=alt.X("yearmonth(period_start):T").title("Period Start"),
                 y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
                 y2=alt.Y2("loss_ratio_upper_ci:Q"),
                 color=alt.Color("Field:N"),
@@ -192,7 +190,7 @@ def _plot_right_edge(
             size=1,
         )
         .encode(
-            x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+            x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
                 "Period Start"
             ),
             y=alt.Y(
@@ -210,7 +208,7 @@ def _plot_right_edge(
             opacity=1,
         )
         .encode(
-            x=alt.X(f"yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+            x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
                 "Period Start"
             ),
             y=alt.Y(
@@ -343,7 +341,7 @@ def plot_heatmap(
 ) -> alt.Chart:
     """Plot triangle metrics as a heatmap."""
     main_title = alt.Title(
-        f"Triangle Heatmap",
+        "Triangle Heatmap",
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
@@ -450,7 +448,7 @@ def plot_atas(
 ) -> alt.Chart:
     """Plot triangle ATAs."""
     main_title = alt.Title(
-        f"Triangle ATAs",
+        "Triangle ATAs",
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
@@ -531,7 +529,7 @@ def plot_growth_curve(
 ) -> alt.Chart:
     """Plot triangle metrics as a growth curve."""
     main_title = alt.Title(
-        f"Triangle Growth Curve",
+        "Triangle Growth Curve",
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
@@ -675,7 +673,7 @@ def plot_sunset(
 ) -> alt.Chart:
     """Plot triangle metrics as a sunset."""
     main_title = alt.Title(
-        f"Triangle Sunset",
+        "Triangle Sunset",
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
@@ -809,7 +807,7 @@ def plot_mountain(
 ) -> alt.Chart:
     """Plot triangle metrics as a mountain."""
     main_title = alt.Title(
-        f"Triangle Mountain Plot",
+        "Triangle Mountain Plot",
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
@@ -896,15 +894,6 @@ def _plot_mountain(
         color=color_conditional,
         opacity=opacity_conditional,
     )
-    ultimates = (
-        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
-        .encode(
-            color=color_conditional_no_legend,
-            opacity=opacity_conditional,
-            strokeOpacity=opacity_conditional,
-        )
-        .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
-    )
 
     if uncertainty and uncertainty_type == "ribbon":
         ribbon_conditional = (
@@ -951,7 +940,7 @@ def plot_ballistic(
 ) -> alt.Chart:
     """Plot triangle metrics as a ballistic."""
     main_title = alt.Title(
-        f"Triangle Ballistic Plot",
+        "Triangle Ballistic Plot",
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
@@ -1078,7 +1067,7 @@ def plot_broom(
 ) -> alt.Chart:
     """Plot triangle metrics as a broom."""
     main_title = alt.Title(
-        f"Triangle Broom Plot",
+        "Triangle Broom Plot",
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
@@ -1211,7 +1200,7 @@ def plot_drip(
 ) -> alt.Chart:
     """Plot triangle metrics as a drip."""
     main_title = alt.Title(
-        f"Triangle Drip Plot",
+        "Triangle Drip Plot",
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
