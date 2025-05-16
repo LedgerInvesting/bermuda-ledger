@@ -38,6 +38,19 @@ from .utils import (
     to_cumulative,
     to_incremental,
 )
+from .plot import (
+    plot_data_completeness,
+    plot_right_edge,
+    plot_heatmap,
+    plot_atas,
+    plot_growth_curve,
+    plot_mountain,
+    plot_sunset,
+    plot_ballistic,
+    plot_broom,
+    plot_drip,
+    plot_hose,
+)
 
 # utils
 Triangle.aggregate = wraps(aggregate)(
@@ -125,3 +138,38 @@ Triangle.from_wide_data_frame = staticmethod(
     wraps(wide_data_frame_to_triangle)(wide_data_frame_to_triangle)
 )
 Triangle.from_json = staticmethod(wraps(json_to_triangle)(json_to_triangle))
+
+# plots
+Triangle.plot_right_edge = wraps(plot_right_edge)(
+    lambda self, *args, **kwargs: plot_right_edge(self, *args, **kwargs)
+)
+Triangle.plot_data_completeness = wraps(plot_data_completeness)(
+    lambda self, *args, **kwargs: plot_data_completeness(self, *args, **kwargs)
+)
+Triangle.plot_heatmap = wraps(plot_heatmap)(
+    lambda self, *args, **kwargs: plot_heatmap(self, *args, **kwargs)
+)
+Triangle.plot_atas = wraps(plot_atas)(
+    lambda self, *args, **kwargs: plot_atas(self, *args, **kwargs)
+)
+Triangle.plot_growth_curve = wraps(plot_growth_curve)(
+    lambda self, *args, **kwargs: plot_growth_curve(self, *args, **kwargs)
+)
+Triangle.plot_mountain = wraps(plot_mountain)(
+    lambda self, *args, **kwargs: plot_mountain(self, *args, **kwargs)
+)
+Triangle.plot_ballistic = wraps(plot_ballistic)(
+    lambda self, *args, **kwargs: plot_ballistic(self, *args, **kwargs)
+)
+Triangle.plot_broom = wraps(plot_broom)(
+    lambda self, *args, **kwargs: plot_broom(self, *args, **kwargs)
+)
+Triangle.plot_drip = wraps(plot_drip)(
+    lambda self, *args, **kwargs: plot_drip(self, *args, **kwargs)
+)
+Triangle.plot_hose = wraps(plot_hose)(
+    lambda self, *args, **kwargs: plot_hose(self, *args, **kwargs)
+)
+Triangle.plot_sunset = wraps(plot_sunset)(
+    lambda self, *args, **kwargs: plot_sunset(self, *args, **kwargs)
+)
