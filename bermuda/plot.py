@@ -69,7 +69,7 @@ def plot_right_edge(
         "Latest Loss Ratio", subtitle="The most recent loss ratio diagonal"
     )
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
+    max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _concat_charts(
         [
             _plot_right_edge(
@@ -85,6 +85,7 @@ def plot_right_edge(
         ncols=max_cols,
     )
     return fig
+
 
 
 def _plot_right_edge(
@@ -247,7 +248,7 @@ def plot_data_completeness(
         subtitle="The number of data fields available per cell",
     )
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
+    max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _concat_charts(
         [
             _plot_data_completeness(
@@ -260,7 +261,7 @@ def plot_data_completeness(
         title=main_title,
         ncols=max_cols,
     ).configure_axis(
-        **_compute_font_sizes(n_slices),
+        **_compute_font_sizes(max_cols),
     )
     return fig
 
@@ -350,37 +351,49 @@ def plot_heatmap(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
-    fig = (
-        _concat_charts(
-            [
-                _concat_charts(
-                    [
-                        _plot_heatmap(
-                            triangle_slice,
-                            metric,
-                            name,
-                            alt.Title(
-                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
-                                **SLICE_TITLE_KWARGS,
-                            ),
-                            n_slices,
-                        ).properties(width=width, height=height)
-                        for name, metric in metric_dict.items()
-                    ],
-                    ncols=min(max_cols, n_metrics),
-                ).resolve_scale(color="independent")
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
-            title=main_title,
-            ncols=1 if n_metrics > 1 else max_cols,
-        )
-        .configure_axis(
-            **_compute_font_sizes(n_slices),
-        )
-        .resolve_scale(color="independent")
-    )
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
+#    fig = (
+#        _concat_charts(
+#            [
+#                _concat_charts(
+#                    [
+#                        _plot_heatmap(
+#                            triangle_slice,
+#                            metric,
+#                            name,
+#                            alt.Title(
+#                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
+#                                **SLICE_TITLE_KWARGS,
+#                            ),
+#                            n_slices,
+#                        ).properties(width=width, height=height)
+#                        for name, metric in metric_dict.items()
+#                    ],
+#                    ncols=min(max_cols, n_metrics),
+#                ).resolve_scale(color="independent")
+#                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
+#            ],
+#            title=main_title,
+#            ncols=1 if n_metrics > 1 else max_cols,
+#        )
+#        .configure_axis(
+#            **_compute_font_sizes(n_slices),
+#        )
+#        .resolve_scale(color="independent")
+#    )
+
+    charts = []
+    for i, (_, triangle_slice) in enumerate(triangle.slices.items()):
+        metric_charts = []
+        for name, metric in metric_dict.items():
+            metric_title = alt.Title(f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}", **SLICE_TITLE_KWARGS)
+            metric_charts.append(
+                _plot_heatmap(triangle_slice, metric, name, metric_title, max_cols).properties(width=width, height=height)
+            )
+        charts.append(_concat_charts(metric_charts, ncols=max_cols).resolve_scale(color="independent"))
+    fig = _concat_charts(charts, title=main_title, ncols=max_cols).configure_axis(**_compute_font_sizes(max_cols))
     return fig
+
 
 
 def _plot_heatmap(
@@ -470,7 +483,7 @@ def plot_atas(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices + n_metrics, np.ceil(np.sqrt(n_slices + n_metrics))))
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _concat_charts(
             [
@@ -484,19 +497,19 @@ def plot_atas(
                                 f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
                                 **SLICE_TITLE_KWARGS,
                             ),
-                            n_slices,
+                            max_cols,
                         ).properties(width=width, height=height)
                         for name, metric in metric_dict.items()
                     ],
-                    ncols=min(max_cols, n_metrics),
+                    ncols=max_cols,
                 ).resolve_scale(color="independent")
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
             title=main_title,
-            ncols=1 if n_metrics > 1 else max_cols,
+            ncols=max_cols,
         )
         .configure_axis(
-            **_compute_font_sizes(n_slices),
+            **_compute_font_sizes(max_cols),
         )
         .resolve_scale(color="independent")
     )
@@ -556,7 +569,7 @@ def plot_growth_curve(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices + n_metrics, np.ceil(np.sqrt(n_slices + n_metrics))))
+    max_cols = ncols or _detemine_facet_cols(n_slices, n_metrics)
     fig = (
         _concat_charts(
             [
@@ -570,7 +583,7 @@ def plot_growth_curve(
                                 f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
                                 **SLICE_TITLE_KWARGS,
                             ),
-                            n_metrics,
+                            max_cols,
                             uncertainty,
                             uncertainty_type,
                         )
@@ -583,7 +596,7 @@ def plot_growth_curve(
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
             title=main_title,
-            ncols=1 if n_metrics > 1 else max_cols,
+            ncols=max_cols,
         )
         .configure_axis(
             **_compute_font_sizes(max_cols),
@@ -706,7 +719,7 @@ def plot_sunset(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _concat_charts(
             [
@@ -720,7 +733,7 @@ def plot_sunset(
                                 f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
                                 **SLICE_TITLE_KWARGS,
                             ),
-                            n_metrics,
+                            max_cols,
                             uncertainty,
                             uncertainty_type,
                         )
@@ -728,7 +741,7 @@ def plot_sunset(
                         .resolve_scale(color="independent")
                         for name, metric in metric_dict.items()
                     ],
-                    ncols=min(max_cols, n_metrics),
+                    ncols=max_cols,
                 ).resolve_scale(color="independent")
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
@@ -736,7 +749,7 @@ def plot_sunset(
             ncols=max_cols,
         )
         .configure_axis(
-            **_compute_font_sizes(n_slices),
+            **_compute_font_sizes(max_cols),
         )
         .resolve_scale(color="independent")
     )
@@ -849,7 +862,7 @@ def plot_mountain(
     )
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
+    max_cols = ncols or _determine_max_cols(n_slices * n_metrics)
     fig = (
         _concat_charts(
             [
@@ -863,7 +876,7 @@ def plot_mountain(
                                 f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
                                 **SLICE_TITLE_KWARGS,
                             ),
-                            n_metrics,
+                            max_cols,
                             uncertainty,
                             uncertainty_type,
                         )
@@ -871,7 +884,7 @@ def plot_mountain(
                         .resolve_scale(color="independent")
                         for name, metric in metric_dict.items()
                     ],
-                    ncols=min(max_cols, n_metrics),
+                    ncols=max_cols,
                 ).resolve_scale(color="independent")
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
             ],
@@ -879,7 +892,7 @@ def plot_mountain(
             ncols=max_cols,
         )
         .configure_axis(
-            **_compute_font_sizes(n_slices),
+            **_compute_font_sizes(max_cols),
         )
         .resolve_scale(color="independent")
     )
@@ -997,7 +1010,7 @@ def plot_ballistic(
         f"Triangle Ballistic Plot",
     )
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
+    max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _concat_charts(
         [
             _plot_ballistic(
@@ -1129,7 +1142,7 @@ def plot_broom(
         f"Triangle Broom Plot",
     )
     n_slices = len(triangle.slices)
-    max_cols = ncols or int(min(n_slices, np.ceil(np.sqrt(n_slices))))
+    max_cols = ncols or _determine_max_cols(n_slices)
     fig = _concat_charts(
         [
             _plot_broom(
@@ -1251,16 +1264,17 @@ def plot_drip(
         * cell["open_claims"]
         / cell["reported_claims"],
     },
+    uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
-    uncertainty: bool = True,
+    ncols: int | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a drip."""
     main_title = alt.Title(
         f"Triangle Drip Plot",
     )
     n_slices = len(triangle.slices)
-    max_cols = 3
+    max_cols = ncols or _determine_facet_cols(n_slices)
     fig = (
         _concat_charts(
             [
@@ -1271,7 +1285,7 @@ def plot_drip(
                         f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
                         **SLICE_TITLE_KWARGS,
                     ),
-                    n_slices,
+                    max_cols,
                     uncertainty,
                 ).properties(width=width, height=height)
                 for i, (_, triangle_slice) in enumerate(triangle.slices.items())
@@ -1280,7 +1294,7 @@ def plot_drip(
             ncols=max_cols,
         )
         .configure_axis(
-            **_compute_font_sizes(n_slices),
+            **_compute_font_sizes(max_cols),
         )
         .resolve_scale(color="independent")
     )
@@ -1374,8 +1388,7 @@ def plot_hose(
         * cell["paid_loss"]
         / cell["earned_premium"],
         "Incremental Paid Loss Ratio": lambda cell, prev_cell: 100
-        * (cell["paid_loss"] - prev_cell["paid_loss"])
-        / cell["earned_premium"],
+        * (cell["paid_loss"] / cell["earned_premium"] - prev_cell["paid_loss"] / prev_cell["earned_premium"])
     },
     width: int = 400,
     height: int = 300,
@@ -1465,3 +1478,8 @@ def _concat_charts(charts: list[alt.Chart], ncols: int, **kwargs) -> alt.Chart:
 
 def boxcox(x: float, p: float):
     return (x**p - 1) / p
+
+
+def _determine_facet_cols(n: int): 
+    """This is a replication of grDevices::n2mfrow in R"""
+    return min(n, int(np.ceil(n / np.sqrt(n))))

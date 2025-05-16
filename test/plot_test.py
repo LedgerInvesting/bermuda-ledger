@@ -67,13 +67,13 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6, "Incurred LR": lambda cell: cell["incurred_loss"] / cell["earned_premium"], "Reported Claims": lambda cell: cell["reported_claims"] / 1e6})
+    test.plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6, "Incurred LR": lambda cell: cell["incurred_loss"] / cell["earned_premium"], "Reported Claims": lambda cell: cell["reported_claims"] / 1e6}).show()
     (test + test2 + test3).plot_heatmap({"Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"], "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"], "Earned Premium": lambda cell: cell["earned_premium"] / 1e6}, ncols=3)
-    (test + test2).plot_heatmap()
-    (test + test2 + test3 + test4 + test5).plot_heatmap()
-    (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6})
-    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]})
-    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]})
+    (test + test2).plot_heatmap().show()
+    (test + test2 + test3 + test4 + test5).plot_heatmap().show()
+    (test + test2 + test3 + test4 + test5).plot_heatmap({"Earned Premium": lambda cell: cell["earned_premium"] / 1e6}).show()
+    test.plot_heatmap({"Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"]}).show()
+    test.plot_heatmap({"Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]}).show()
 
 def test_plot_heatmap_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
