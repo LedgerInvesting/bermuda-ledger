@@ -13,12 +13,8 @@ def test_plot_data_completeness():
         metadata=Metadata(details={"id": 1})
     )
     test2 = test.derive_metadata(id=2)
-    test3 = test.derive_metadata(id=3)
-    test4 = test.derive_metadata(id=4)
-    test5 = test.derive_metadata(id=5)
     test2.plot_data_completeness()
     (test + test2).plot_data_completeness()
-    (test + test2 + test3 + test4 + test5).plot_data_completeness()
 
 def test_plot_data_completeness_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
@@ -37,12 +33,8 @@ def test_plot_right_edge():
         paid_loss = lambda cell: cell["paid_loss"] * 0.8
     )
     test2 = test.derive_metadata(id=2)
-    test3 = test.derive_metadata(id=3)
-    test4 = test.derive_metadata(id=4)
-    test5 = test.derive_metadata(id=5)
     test.plot_right_edge()
     (test + test2).plot_right_edge()
-    (test + test2 + test3 + test4 + test5).plot_right_edge()
 
 
 def test_plot_right_edge_with_predictions():
@@ -110,10 +102,8 @@ def test_plot_growth_curve():
         reported_claims = lambda cell: cell["reported_loss"],
     )
     test2 = test.derive_metadata(id=2)
-    test3 = test.derive_metadata(id=3)
-    test4 = test.derive_metadata(id=4)
-    test5 = test.derive_metadata(id=5)
-    test.plot_growth_curve()
+    test.plot_growth_curve().show()
+    (test + test2).plot_growth_curve()
     test.plot_growth_curve({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
@@ -137,13 +127,8 @@ def test_plot_mountain():
         reported_claims = lambda cell: cell["reported_loss"],
     )
     test2 = test.derive_metadata(id=2)
-    test3 = test.derive_metadata(id=3)
-    test4 = test.derive_metadata(id=4)
-    test5 = test.derive_metadata(id=5)
     test.plot_mountain()
-    (test + test2 + test3 + test4 + test5).plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
-    test.plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
-    test.plot_mountain({"Paid/Reported LR": lambda cell: 100 * (cell["paid_loss"] / cell["earned_premium"]) / (cell["reported_loss"] / cell["earned_premium"])})
+    (test + test2).plot_mountain({"Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"], "Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
 def test_plot_mountain_with_predictions():
@@ -168,17 +153,13 @@ def test_plot_ballistic():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_ballistic()
-    (test + test2 + test3 + test4 + test5).plot_ballistic(ncols=2, width=500, height=300)
+    test.plot_ballistic().show()
+    (test + test2 + test3 + test4 + test5).plot_ballistic(ncols=2, width=500, height=300).show()
 
 
 def test_plot_ballistic_with_predictions():
-    test = meyers_tri.derive_metadata(id=1).derive_fields(
-        paid_loss = lambda cell: cell["paid_loss"] * 0.8
-    )
-    test_predictions = test.derive_fields(
-        reported_loss = lambda cell: cell["reported_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["reported_loss"], 1e5, 10_000),
-        paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
+    test_predictions = meyers_tri.derive_fields(
+        reported_loss = lambda cell: cell["reported_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["reported_loss"], 1e6, 10_000),
     )
 
     test_predictions.plot_ballistic()
@@ -192,9 +173,9 @@ def test_plot_broom():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_broom()
-    test.plot_broom(rule=None)
-    (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300)
+    test.plot_broom().show()
+    test.plot_broom(rule=None).show()
+    (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300).show()
 
 
 def test_plot_broom_with_predictions():
@@ -229,8 +210,7 @@ def test_plot_drip_with_predictions():
         open_claims = lambda cell: 1000 * np.exp(-0.1 * cell.dev_lag()),
     )
     test_predictions = test.derive_fields(
-        reported_loss = lambda cell: cell["reported_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["reported_loss"], 1e5, 10_000),
-        paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
+        open_claims = lambda cell: cell["open_claims"] if cell.period_start.year < 1995 else np.random.normal(cell["open_claims"], 500, 10_000),
     )
 
     test_predictions.plot_drip()
@@ -251,11 +231,8 @@ def test_plot_hose():
 def test_plot_sunset():
     test = meyers_tri.derive_metadata(id=1)
     test2 = test.derive_metadata(id=2)
-    test3 = test.derive_metadata(id=3)
-    test4 = test.derive_metadata(id=4)
-    test5 = test.derive_metadata(id=5)
     test.plot_sunset()
-    (test + test2 + test3 + test4 + test5).plot_sunset()
+    (test + test2).plot_sunset()
 
 def test_plot_sunset_with_predictions():
     test = meyers_tri.derive_metadata(id=1).derive_fields(

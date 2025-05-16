@@ -466,7 +466,7 @@ have a single legend. This could be handled by the following:
    (triangle.derive_metadata(id=1) + triangle.derive_metadata(id=2)).plot_heatmap(
        metric_dict = {
            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
-           "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
+           "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"] * 1.2,
         },
         width=300,
         height=200,

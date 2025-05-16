@@ -64,32 +64,26 @@ def plot_right_edge(
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     main_title = alt.Title(
         "Latest Loss Ratio", subtitle="The most recent loss ratio diagonal"
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
-    fig = _concat_charts(
-        [
-            _plot_right_edge(
-                triangle_slice,
-                alt.Title(f"slice {i + 1}", **SLICE_TITLE_KWARGS),
-                max_cols,
-                show_uncertainty,
-                uncertainty_type,
-            ).properties(width=width, height=height)
-            for i, (m, triangle_slice) in enumerate(triangle.slices.items())
-        ],
+    fig = _build_metric_slice_charts(
+        triangle,
+        plot_func=_plot_right_edge,
         title=main_title,
+        facet_titles=facet_titles,
+        show_uncertainty=show_uncertainty,
+        uncertainty_type=uncertainty_type,
+        width=width,
+        height=height,
+        mark_scaler=max_cols,
         ncols=max_cols,
-    ).configure_axis(
-        **_compute_font_sizes(max_cols)
-    ).configure_legend(
-        **_compute_font_sizes(max_cols)
-    )
+    ).configure_axis(**_compute_font_sizes(max_cols))
     return fig
-
 
 
 def _plot_right_edge(
@@ -204,7 +198,7 @@ def _plot_right_edge(
             y=alt.Y(
                 "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
             ).title("Loss Ratio %"),
-            color=alt.Color("Field:N")
+            color=alt.Color("Field:N"),
         )
     )
 
@@ -246,6 +240,7 @@ def plot_data_completeness(
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     main_title = alt.Title(
         "Triangle Completeness",
@@ -253,20 +248,16 @@ def plot_data_completeness(
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
-    fig = _concat_charts(
-        [
-            _plot_data_completeness(
-                triangle_slice,
-                alt.Title(f"slice {i + 1}", **SLICE_TITLE_KWARGS),
-                max_cols,
-            ).properties(width=width, height=height)
-            for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-        ],
+    fig = _build_metric_slice_charts(
+        triangle,
+        plot_func=_plot_data_completeness,
         title=main_title,
+        facet_titles=facet_titles,
+        width=width,
+        height=height,
+        mark_scaler=max_cols,
         ncols=max_cols,
-    ).configure_axis(
-        **_compute_font_sizes(max_cols),
-    )
+    ).configure_axis(**_compute_font_sizes(max_cols))
     return fig
 
 
@@ -348,6 +339,7 @@ def plot_heatmap(
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a heatmap."""
     main_title = alt.Title(
@@ -356,53 +348,22 @@ def plot_heatmap(
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
-#    fig = (
-#        _concat_charts(
-#            [
-#                _concat_charts(
-#                    [
-#                        _plot_heatmap(
-#                            triangle_slice,
-#                            metric,
-#                            name,
-#                            alt.Title(
-#                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
-#                                **SLICE_TITLE_KWARGS,
-#                            ),
-#                            n_slices,
-#                        ).properties(width=width, height=height)
-#                        for name, metric in metric_dict.items()
-#                    ],
-#                    ncols=min(max_cols, n_metrics),
-#                ).resolve_scale(color="independent")
-#                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-#            ],
-#            title=main_title,
-#            ncols=1 if n_metrics > 1 else max_cols,
-#        )
-#        .configure_axis(
-#            **_compute_font_sizes(n_slices),
-#        )
-#        .resolve_scale(color="independent")
-#    )
-
-    charts = []
-    for i, (_, triangle_slice) in enumerate(triangle.slices.items()):
-        metric_charts = []
-        for name, metric in metric_dict.items():
-            metric_title = alt.Title(f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}", **SLICE_TITLE_KWARGS)
-            charts.append(
-                _plot_heatmap(triangle_slice, metric, name, metric_title, max_cols).properties(width=width, height=height)
-            )
-    fig = _concat_charts(charts, title=main_title, ncols=max_cols).configure_axis(
-        **_compute_font_sizes(max_cols)
-    ).configure_legend(
-        **_compute_font_sizes(max_cols)
-    ).resolve_scale(
-        color="independent",
+    fig = (
+        _build_metric_slice_charts(
+            triangle=triangle,
+            plot_func=_plot_heatmap,
+            metric_dict=metric_dict,
+            title=main_title,
+            facet_titles=facet_titles,
+            width=width,
+            height=height,
+            mark_scaler=max_cols,
+            ncols=max_cols,
+        )
+        .resolve_scale(color="independent")
+        .resolve_legend(color="independent")
     )
     return fig
-
 
 
 def _plot_heatmap(
@@ -474,7 +435,7 @@ def _plot_heatmap(
         .otherwise(alt.value("black")),
     )
 
-    return heatmap + text
+    return (heatmap + text).resolve_scale(color="independent")
 
 
 def plot_atas(
@@ -485,6 +446,7 @@ def plot_atas(
     ncols: int | None = None,
     width: int = 400,
     height: int = 200,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle ATAs."""
     main_title = alt.Title(
@@ -494,38 +456,26 @@ def plot_atas(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
-        _concat_charts(
-            [
-                _concat_charts(
-                    [
-                        _plot_atas(
-                            triangle_slice,
-                            metric,
-                            name,
-                            alt.Title(
-                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
-                                **SLICE_TITLE_KWARGS,
-                            ),
-                            max_cols,
-                        ).properties(width=width, height=height)
-                        for name, metric in metric_dict.items()
-                    ],
-                    ncols=max_cols,
-                ).resolve_scale(color="independent")
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
+        _build_metric_slice_charts(
+            triangle,
+            plot_func=_plot_atas,
+            metric_dict=metric_dict,
             title=main_title,
+            facet_titles=facet_titles,
+            width=width,
+            height=height,
             ncols=max_cols,
         )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
+        .configure_axis(**_compute_font_sizes(max_cols))
+        .configure_legend(**_compute_font_sizes(max_cols))
         .resolve_scale(color="independent")
     )
     return fig
 
 
-def _plot_atas(triangle: Triangle, metric: MetricFunc, name: str, title: alt.Title, n_slices: int) -> alt.Chart:
+def _plot_atas(
+    triangle: Triangle, metric: MetricFunc, name: str, title: alt.Title
+) -> alt.Chart:
     metric_data = alt.Data(
         values=[
             *[
@@ -539,7 +489,6 @@ def _plot_atas(triangle: Triangle, metric: MetricFunc, name: str, title: alt.Tit
         ]
     )
 
-
     tooltip = [
         alt.Tooltip("period_start:T", title="Period Start"),
         alt.Tooltip("period_end:T", title="Period End"),
@@ -549,16 +498,23 @@ def _plot_atas(triangle: Triangle, metric: MetricFunc, name: str, title: alt.Tit
     ]
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0)).title("Dev Lag (months)").scale(padding=10),
+        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0))
+        .title("Dev Lag (months)")
+        .scale(padding=10),
         y=alt.X("metric:Q").title(name).scale(zero=False, padding=10),
         tooltip=tooltip,
     )
 
     points = base.mark_point(color="black", filled=True)
-    boxplot = base.mark_boxplot(opacity=0.7, color="skyblue", median=alt.MarkConfig(stroke="black"), rule=alt.MarkConfig(stroke="black"), box=alt.MarkConfig(stroke="black"))
+    boxplot = base.mark_boxplot(
+        opacity=0.7,
+        color="skyblue",
+        median=alt.MarkConfig(stroke="black"),
+        rule=alt.MarkConfig(stroke="black"),
+        box=alt.MarkConfig(stroke="black"),
+    )
 
     return (points + boxplot).interactive()
-
 
 
 def plot_growth_curve(
@@ -581,40 +537,21 @@ def plot_growth_curve(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
-        _concat_charts(
-            [
-                _concat_charts(
-                    [
-                        _plot_growth_curve(
-                            triangle_slice,
-                            metric,
-                            name,
-                            alt.Title(
-                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}" if facet_titles is None else facet_titles[i],
-                                **SLICE_TITLE_KWARGS,
-                            ),
-                            max_cols,
-                            uncertainty,
-                            uncertainty_type,
-                        )
-                        .properties(width=width, height=height)
-                        .resolve_scale(color="independent")
-                        for name, metric in metric_dict.items()
-                    ],
-                    ncols=max_cols,
-                ).resolve_scale(color="independent")
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
+        _build_metric_slice_charts(
+            triangle,
+            plot_func=_plot_growth_curve,
+            metric_dict=metric_dict,
+            uncertainty=uncertainty,
+            uncertainty_type=uncertainty_type,
+            mark_scaler=max_cols,
             title=main_title,
+            facet_titles=facet_titles,
+            width=width,
+            height=height,
             ncols=max_cols,
         )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
-        .configure_legend(
-            **_compute_font_sizes(max_cols),
-        )
-        .resolve_scale(color="independent")
+        .configure_axis(**_compute_font_sizes(max_cols))
+        .configure_legend(**_compute_font_sizes(max_cols))
     )
     return fig
 
@@ -624,7 +561,7 @@ def _plot_growth_curve(
     metric: MetricFunc,
     name: str,
     title: alt.Title,
-    n_metrics: int,
+    mark_scaler: int,
     uncertainty: bool,
     uncertainty_type: str,
 ) -> alt.Chart:
@@ -661,9 +598,9 @@ def _plot_growth_curve(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:O", axis=alt.Axis(grid=True, labelAngle=0)).title(
-            "Dev Lag (months)"
-        ).scale(nice=False, padding=10),
+        x=alt.X("dev_lag:O", axis=alt.Axis(grid=True, labelAngle=0))
+        .title("Dev Lag (months)")
+        .scale(nice=False, padding=10),
         y=alt.X("metric:Q").title(name).scale(padding=10),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -674,20 +611,28 @@ def _plot_growth_curve(
         ],
     )
 
-    lines = base.mark_line().encode(color=color_conditional_no_legend, opacity=opacity_conditional)
+    lines = base.mark_line().encode(
+        color=color_conditional_no_legend, opacity=opacity_conditional
+    )
     points = base.mark_point(stroke="black", filled=True).encode(
         color=color_conditional_no_legend,
         opacity=opacity_conditional,
     )
     ultimates = (
-        base.mark_point(size=300 / n_metrics, filled=True, stroke="black")
-        .encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
+        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        .encode(
+            color=color_conditional,
+            opacity=opacity_conditional,
+            strokeOpacity=opacity_conditional,
+        )
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
 
     if uncertainty and uncertainty_type == "ribbon":
         ribbon_opacity_conditional = (
-            alt.when(selector).then(alt.OpacityValue(0.5)).otherwise(alt.OpacityValue(0.2))
+            alt.when(selector)
+            .then(alt.OpacityValue(0.5))
+            .otherwise(alt.OpacityValue(0.2))
         )
         errors = base.mark_area(
             opacity=0.5,
@@ -707,7 +652,11 @@ def _plot_growth_curve(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors + lines + points, ultimates.add_params(selector)).interactive()
+    return (
+        alt.layer(errors + lines + points, ultimates.add_params(selector))
+        .resolve_scale(color="independent")
+        .interactive()
+    )
 
 
 def plot_sunset(
@@ -722,6 +671,7 @@ def plot_sunset(
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a sunset."""
     main_title = alt.Title(
@@ -731,37 +681,21 @@ def plot_sunset(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
-        _concat_charts(
-            [
-                _concat_charts(
-                    [
-                        _plot_sunset(
-                            triangle_slice,
-                            metric,
-                            name,
-                            alt.Title(
-                                f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
-                                **SLICE_TITLE_KWARGS,
-                            ),
-                            max_cols,
-                            uncertainty,
-                            uncertainty_type,
-                        )
-                        .properties(width=width, height=height)
-                        .resolve_scale(color="independent")
-                        for name, metric in metric_dict.items()
-                    ],
-                    ncols=max_cols,
-                ).resolve_scale(color="independent")
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
+        _build_metric_slice_charts(
+            triangle,
+            plot_func=_plot_sunset,
+            metric_dict=metric_dict,
+            uncertainty=uncertainty,
+            uncertainty_type=uncertainty_type,
+            mark_scaler=max_cols,
             title=main_title,
+            facet_titles=facet_titles,
+            width=width,
+            height=height,
             ncols=max_cols,
         )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
-        .resolve_scale(color="independent")
+        .configure_axis(**_compute_font_sizes(max_cols))
+        .configure_legend(**_compute_font_sizes(max_cols))
     )
     return fig.interactive()
 
@@ -771,7 +705,7 @@ def _plot_sunset(
     metric: MetricFunc,
     name: str,
     title: alt.Title,
-    n_metrics: int,
+    mark_scaler: int,
     uncertainty: bool,
     uncertainty_type: str,
 ) -> alt.Chart:
@@ -817,7 +751,9 @@ def _plot_sunset(
         ],
     )
 
-    points = base.mark_point(stroke="black", size=200 / n_metrics, filled=True).encode(
+    points = base.mark_point(
+        stroke="black", size=200 / mark_scaler, filled=True
+    ).encode(
         color=color_conditional,
         opacity=opacity_conditional,
         strokeOpacity=opacity_conditional,
@@ -852,7 +788,11 @@ def _plot_sunset(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors, regression, points).add_params(selector)
+    return (
+        alt.layer(errors, regression, points)
+        .add_params(selector)
+        .resolve_scale(color="independent")
+    )
 
 
 def plot_mountain(
@@ -865,6 +805,7 @@ def plot_mountain(
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a mountain."""
     main_title = alt.Title(
@@ -874,37 +815,21 @@ def plot_mountain(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
-        _concat_charts(
-            [
-                _concat_charts(
-                    [
-                        _plot_mountain(
-                            triangle_slice,
-                            metric,
-                            name,
-                            alt.Title(
-                                f"{(n_slices > 1) * ('slice ' + str(i + 1) + ': ')}{name}",
-                                **SLICE_TITLE_KWARGS,
-                            ),
-                            max_cols,
-                            uncertainty,
-                            uncertainty_type,
-                        )
-                        .properties(width=width, height=height)
-                        .resolve_scale(color="independent")
-                        for name, metric in metric_dict.items()
-                    ],
-                    ncols=max_cols,
-                ).resolve_scale(color="independent")
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
+        _build_metric_slice_charts(
+            triangle,
+            plot_func=_plot_mountain,
+            metric_dict=metric_dict,
+            uncertainty=uncertainty,
+            uncertainty_type=uncertainty_type,
+            mark_scaler=max_cols,
             title=main_title,
+            facet_titles=facet_titles,
+            width=width,
+            height=height,
             ncols=max_cols,
         )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
-        .resolve_scale(color="independent")
+        .configure_axis(**_compute_font_sizes(max_cols))
+        .configure_legend(**_compute_font_sizes(max_cols))
     )
     return fig.interactive()
 
@@ -914,7 +839,7 @@ def _plot_mountain(
     metric: MetricFunc,
     name: str,
     title: alt.Title,
-    n_metrics: int,
+    mark_scaler: int,
     uncertainty: bool,
     uncertainty_type: str,
 ) -> alt.Chart:
@@ -964,13 +889,20 @@ def _plot_mountain(
         ],
     )
 
-    lines = base.mark_line().encode(color=color_conditional_no_legend, opacity=opacity_conditional)
+    lines = base.mark_line().encode(
+        color=color_conditional_no_legend, opacity=opacity_conditional
+    )
     points = base.mark_point(filled=True, stroke="black").encode(
-        color=color_conditional, opacity=opacity_conditional,
+        color=color_conditional,
+        opacity=opacity_conditional,
     )
     ultimates = (
-        base.mark_point(size=300 / n_metrics, filled=True, stroke="black")
-        .encode(color=color_conditional_no_legend, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
+        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        .encode(
+            color=color_conditional_no_legend,
+            opacity=opacity_conditional,
+            strokeOpacity=opacity_conditional,
+        )
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
 
@@ -980,8 +912,7 @@ def _plot_mountain(
             .then(alt.OpacityValue(0.5))
             .otherwise(alt.OpacityValue(0.2))
         )
-        errors = base.mark_area(
-        ).encode(
+        errors = base.mark_area().encode(
             y=alt.Y("metric_lower_ci:Q"),
             y2=alt.Y2("metric_upper_ci:Q"),
             color=color_conditional_no_legend,
@@ -997,7 +928,9 @@ def _plot_mountain(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors + lines, points.add_params(selector))
+    return alt.layer(errors + lines, points.add_params(selector)).resolve_scale(
+        color="independent"
+    )
 
 
 def plot_ballistic(
@@ -1014,6 +947,7 @@ def plot_ballistic(
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a ballistic."""
     main_title = alt.Title(
@@ -1021,26 +955,19 @@ def plot_ballistic(
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
-    fig = _concat_charts(
-        [
-            _plot_ballistic(
-                triangle_slice,
-                axis_metrics,
-                alt.Title(
-                    f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
-                    **SLICE_TITLE_KWARGS,
-                ),
-                max_cols,
-                uncertainty,
-            ).properties(width=width, height=height)
-            for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-        ],
+    fig = _build_metric_slice_charts(
+        triangle,
+        plot_func=_plot_ballistic,
+        axis_metrics=axis_metrics,
         title=main_title,
+        facet_titles=facet_titles,
+        uncertainty=uncertainty,
+        width=width,
+        height=height,
+        mark_scaler=max_cols,
         ncols=max_cols,
-    ).configure_axis(
-        **_compute_font_sizes(max_cols),
-    )
-    return fig.interactive()
+    ).configure_axis(**_compute_font_sizes(max_cols))
+    return fig
 
 
 def _plot_ballistic(
@@ -1113,7 +1040,7 @@ def _plot_ballistic(
         filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
     ).encode(color=color_conditional, opacity=opacity_conditional)
     ultimates = (
-        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        base.mark_point(size=200 / mark_scaler, filled=True, stroke="black")
         .encode(color=color_conditional, opacity=opacity_conditional)
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
@@ -1127,16 +1054,17 @@ def _plot_ballistic(
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(
-        diagonal, errors + lines, (points + ultimates).add_params(selector)
-    ).resolve_scale(color="independent").interactive()
+    return (
+        alt.layer(diagonal, errors + lines, (points + ultimates).add_params(selector))
+        .resolve_scale(color="independent")
+        .interactive()
+    )
 
 
 def plot_broom(
     triangle: Triangle,
     axis_metrics: MetricFuncDict = {
-        "Paid/Reported Ratio": lambda cell: cell["paid_loss"]
-        / cell["reported_loss"],
+        "Paid/Reported Ratio": lambda cell: cell["paid_loss"] / cell["reported_loss"],
         "Paid Loss Ratio": lambda cell: 100
         * cell["paid_loss"]
         / cell["earned_premium"],
@@ -1146,6 +1074,7 @@ def plot_broom(
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a broom."""
     main_title = alt.Title(
@@ -1153,26 +1082,19 @@ def plot_broom(
     )
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
-    fig = _concat_charts(
-        [
-            _plot_broom(
-                triangle_slice,
-                axis_metrics,
-                alt.Title(
-                    f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
-                    **SLICE_TITLE_KWARGS,
-                ),
-                max_cols,
-                uncertainty,
-                rule,
-            ).properties(width=width, height=height)
-            for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-        ],
+    fig = _build_metric_slice_charts(
+        triangle,
+        plot_func=_plot_broom,
+        axis_metrics=axis_metrics,
         title=main_title,
+        facet_titles=facet_titles,
+        uncertainty=uncertainty,
+        rule=rule,
+        width=width,
+        height=height,
+        mark_scaler=max_cols,
         ncols=max_cols,
-    ).configure_axis(
-        **_compute_font_sizes(max_cols),
-    )
+    ).configure_axis(**_compute_font_sizes(max_cols))
     return fig.interactive()
 
 
@@ -1232,8 +1154,7 @@ def _plot_broom(
     )
 
     wall = (
-        alt.Chart()
-        .mark_rule(strokeDash=[12, 5], opacity=0.5, strokeWidth=2)
+        alt.Chart().mark_rule(strokeDash=[12, 5], opacity=0.5, strokeWidth=2)
     ).encode()
     if rule is not None:
         wall = wall.encode(x=alt.datum(rule))
@@ -1243,10 +1164,18 @@ def _plot_broom(
     )
     points = base.mark_point(
         filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
-    ).encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
+    ).encode(
+        color=color_conditional,
+        opacity=opacity_conditional,
+        strokeOpacity=opacity_conditional,
+    )
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
-        .encode(color=color_conditional, opacity=opacity_conditional, strokeOpacity=opacity_conditional)
+        .encode(
+            color=color_conditional,
+            opacity=opacity_conditional,
+            strokeOpacity=opacity_conditional,
+        )
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
 
@@ -1278,6 +1207,7 @@ def plot_drip(
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     """Plot triangle metrics as a drip."""
     main_title = alt.Title(
@@ -1286,26 +1216,19 @@ def plot_drip(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = (
-        _concat_charts(
-            [
-                _plot_drip(
-                    triangle_slice,
-                    axis_metrics,
-                    alt.Title(
-                        f"{(n_slices > 1) * ('slice ' + str(i + 1))}",
-                        **SLICE_TITLE_KWARGS,
-                    ),
-                    uncertainty,
-                    max_cols,
-                ).properties(width=width, height=height)
-                for i, (_, triangle_slice) in enumerate(triangle.slices.items())
-            ],
+        _build_metric_slice_charts(
+            triangle,
+            plot_func=_plot_drip,
+            axis_metrics=axis_metrics,
             title=main_title,
+            facet_titles=facet_titles,
+            uncertainty=uncertainty,
+            width=width,
+            height=height,
+            mark_scaler=max_cols,
             ncols=max_cols,
         )
-        .configure_axis(
-            **_compute_font_sizes(max_cols),
-        )
+        .configure_axis(**_compute_font_sizes(max_cols))
         .resolve_scale(color="independent")
     )
     return fig.interactive()
@@ -1379,8 +1302,8 @@ def _plot_drip(
 
     if uncertainty:
         errors = base.mark_errorbar(thickness=5).encode(
-            y=alt.Y(f"{name_y}:Q").title(name_y),
-            y2=alt.Y2(f"{name_y}:Q"),
+            y=alt.Y(f"{name_y}_lower_ci:Q").title(name_y),
+            y2=alt.Y2(f"{name_y}_upper_ci:Q"),
             color=color_conditional_no_legend,
         )
     else:
@@ -1398,16 +1321,62 @@ def plot_hose(
         * cell["paid_loss"]
         / cell["earned_premium"],
         "Incremental Paid Loss Ratio": lambda cell, prev_cell: 100
-        * (cell["paid_loss"] / cell["earned_premium"] - prev_cell["paid_loss"] / prev_cell["earned_premium"])
+        * (
+            cell["paid_loss"] / cell["earned_premium"]
+            - prev_cell["paid_loss"] / prev_cell["earned_premium"]
+        ),
     },
     uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
+    facet_titles: list[str] | None = None,
 ) -> alt.Chart:
-    return plot_drip(triangle, axis_metrics, uncertainty, width, height, ncols).properties(
-        title="Triangle Hose Plot"
+    return plot_drip(
+        triangle, axis_metrics, uncertainty, width, height, ncols, facet_titles
+    ).properties(title="Triangle Hose Plot")
+
+
+def _build_metric_slice_charts(
+    triangle, plot_func, title, facet_titles, width, height, ncols, **plot_kwargs
+):
+    charts = []
+    n_slices = len(triangle.slices)
+    for i, (_, triangle_slice) in enumerate(triangle.slices.items()):
+        if facet_titles is None:
+            slice_title = f"{(n_slices > 1) * ('slice ' + str(i + 1))}"
+        else:
+            slice_title = facet_titles[i]
+        if plot_kwargs.get("metric_dict") is not None:
+            for name, metric in plot_kwargs["metric_dict"].items():
+                metric_title = (
+                    (n_slices > 1) * (slice_title + ": ") + name
+                    if facet_titles is None
+                    else slice_title
+                )
+                charts.append(
+                    plot_func(
+                        triangle=triangle_slice,
+                        metric=metric,
+                        name=name,
+                        title=alt.Title(metric_title, **SLICE_TITLE_KWARGS),
+                        **{k: v for k, v in plot_kwargs.items() if k != "metric_dict"},
+                    ).properties(width=width, height=height)
+                )
+        else:
+            charts.append(
+                plot_func(
+                    triangle=triangle_slice,
+                    title=alt.Title(slice_title, **SLICE_TITLE_KWARGS),
+                    **plot_kwargs,
+                ).properties(width=width, height=height)
+            )
+    fig = (
+        _concat_charts(charts, title=title, ncols=ncols)
+        .configure_axis(**_compute_font_sizes(ncols))
+        .configure_legend(**_compute_font_sizes(ncols))
     )
+    return fig
 
 
 def _core_plot_data(cell: Cell) -> dict[str, Any]:
@@ -1491,6 +1460,6 @@ def boxcox(x: float, p: float):
     return (x**p - 1) / p
 
 
-def _determine_facet_cols(n: int): 
+def _determine_facet_cols(n: int):
     """This is a replication of grDevices::n2mfrow in R"""
     return int(min(n, np.ceil(n / np.sqrt(n))))
