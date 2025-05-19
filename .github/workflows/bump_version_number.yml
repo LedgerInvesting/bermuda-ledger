@@ -11,14 +11,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        # with: 
-          # token: ${{ secrets.BERMUDA_CI }}
+        with: 
+          token: ${{ secrets.BERMUDA_CI }}
 
       - name: Apply Version Release Rules
         id: get_tag_version
         uses: mathieudutour/github-tag-action@v6.0
         with:
-          # github_token: ${{ secrets.BERMUDA_CI }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           dry_run: true
           tag_prefix: ""
           custom_release_rules: MAJOR:major,MINOR:minor,PATCH:patch,FIX:patch,BUG:patch,FEATURE:minor
@@ -28,5 +28,5 @@ jobs:
 
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          # github_token: ${{ secrets.BERMUDA_CI }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           commit_message: Automated version bump to ${{ steps.get_tag_version.outputs.new_tag }}
