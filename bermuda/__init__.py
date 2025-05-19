@@ -17,7 +17,7 @@ from .matrix import (
 from .utils import *
 from .factory import Triangle
 from .triangle import TriangleSlice
-import .date_utils as date_utils
+import bermuda.date_utils as date_utils
 from .date_utils import *
 
 local_dir = os.path.dirname(os.path.abspath(__file__))
