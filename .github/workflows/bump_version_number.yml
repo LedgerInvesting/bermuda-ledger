@@ -28,5 +28,5 @@ jobs:
 
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          github_token: ${{ secrets.BERMUDA_CI }}
+          # github_token: ${{ secrets.BERMUDA_CI }}
           commit_message: Automated version bump to ${{ steps.get_tag_version.outputs.new_tag }}
