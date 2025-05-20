@@ -2,7 +2,7 @@ import altair as alt
 from babel.numbers import get_currency_symbol
 import pandas as pd
 import numpy as np
-from typing import Callable, Any
+from typing import Callable, Any, Literal
 
 from .triangle import Triangle, Cell
 
@@ -59,8 +59,8 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
 
 def plot_right_edge(
     triangle: Triangle,
-    show_uncertainty: bool = True,
-    uncertainty_type: str = "ribbon",
+    uncertainty: bool = True,
+    uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -76,7 +76,7 @@ def plot_right_edge(
         plot_func=_plot_right_edge,
         title=main_title,
         facet_titles=facet_titles,
-        show_uncertainty=show_uncertainty,
+        uncertainty=uncertainty,
         uncertainty_type=uncertainty_type,
         width=width,
         height=height,
@@ -90,8 +90,8 @@ def _plot_right_edge(
     triangle: Triangle,
     title: alt.Title,
     mark_scaler: int,
-    show_uncertainty: bool = True,
-    uncertainty_type: str = "ribbon",
+    uncertainty: bool = True,
+    uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
 ) -> alt.Chart:
     if "earned_premium" not in triangle.fields:
         raise ValueError(
@@ -157,7 +157,7 @@ def _plot_right_edge(
         )
     )
 
-    if show_uncertainty and uncertainty_type == "ribbon":
+    if uncertainty and uncertainty_type == "ribbon":
         loss_error = (
             alt.Chart(loss_data)
             .mark_area(
@@ -170,7 +170,7 @@ def _plot_right_edge(
                 color=alt.Color("Field:N"),
             )
         )
-    elif show_uncertainty and uncertainty_type == "segments":
+    elif uncertainty and uncertainty_type == "segments":
         loss_error = (
             alt.Chart(loss_data)
             .mark_errorbar(thickness=3)
@@ -521,7 +521,7 @@ def plot_growth_curve(
         "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"]
     },
     uncertainty: bool = True,
-    uncertainty_type: str = "ribbon",
+    uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
@@ -561,7 +561,7 @@ def _plot_growth_curve(
     title: alt.Title,
     mark_scaler: int,
     uncertainty: bool,
-    uncertainty_type: str,
+    uncertainty_type: Literal["ribbon", "segments"],
 ) -> alt.Chart:
     metric_data = alt.Data(
         values=[
@@ -665,7 +665,7 @@ def plot_sunset(
         )
     },
     uncertainty: bool = True,
-    uncertainty_type: str = "ribbon",
+    uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -705,7 +705,7 @@ def _plot_sunset(
     title: alt.Title,
     mark_scaler: int,
     uncertainty: bool,
-    uncertainty_type: str,
+    uncertainty_type: Literal["ribbon", "segments"],
 ) -> alt.Chart:
     metric_data = alt.Data(
         values=[
@@ -799,7 +799,7 @@ def plot_mountain(
         "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"]
     },
     uncertainty: bool = True,
-    uncertainty_type: str = "ribbon",
+    uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -839,7 +839,7 @@ def _plot_mountain(
     title: alt.Title,
     mark_scaler: int,
     uncertainty: bool,
-    uncertainty_type: str,
+    uncertainty_type: Literal["ribbon", "segments"],
 ) -> alt.Chart:
     metric_data = alt.Data(
         values=[

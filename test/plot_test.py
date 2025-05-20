@@ -46,8 +46,8 @@ def test_plot_right_edge_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] if cell.period_start.year < 1995 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_right_edge(show_uncertainty=True, uncertainty_type="ribbon")
-    test_predictions.plot_right_edge(show_uncertainty=True, uncertainty_type="segments")
+    test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="ribbon")
+    test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="segments")
 
     
 def test_plot_heatmap():
