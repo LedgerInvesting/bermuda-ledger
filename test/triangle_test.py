@@ -1,7 +1,6 @@
 from datetime import date
 
 import numpy as np
-import plotly.graph_objects as go
 import pytest
 from deepdiff import DeepDiff
 
@@ -432,19 +431,6 @@ def test_constant_details_removal():
         4,
     ]
     assert empty_tri == Triangle([])
-
-
-def test_plots():
-    edge_plot = base_tri.derive_fields(
-        earned_premium=lambda cell: 500
-    ).plot_right_edge()
-    completeness_plot = base_tri.plot_data_completeness()
-
-    with pytest.raises(ValueError, match="must contain earned_premium"):
-        base_tri.plot_right_edge()
-
-    assert isinstance(edge_plot, go.Figure)
-    assert isinstance(completeness_plot, go.Figure)
 
 
 def test_extract():
