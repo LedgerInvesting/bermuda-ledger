@@ -12,6 +12,8 @@ It offers a user-friendly interface for:
 * A single :code:`Triangle` class for manipulating triangles of varying complexities (e.g. ragged, multi-program, cumulative or incremental triangles).
 * An intuitive :code:`Cell` type that can hold multiple data types and metadata.
 * A collection of useful :code:`Cell`- and :code:`Triangle`-level functionality, including summarizing, aggregating, extending, filtering, and bootstrapping.
+* A variety of plots to explore triangle structures, loss development dynamics, and predictive distributions and uncertainty, using
+  `Altair <https://altair-viz.github.io/index.html>`_.
 
 If you're new to Bermuda, take a look at the `Quick Start <quick-start.rst>`_ guide
 for a brief overview of its functionality, or the
