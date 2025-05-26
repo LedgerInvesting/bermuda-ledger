@@ -1,3 +1,5 @@
+import string
+
 import altair as alt
 from babel.numbers import get_currency_symbol
 import pandas as pd
@@ -5,12 +7,13 @@ import numpy as np
 from typing import Callable, Any, Literal
 
 from .triangle import Triangle, Cell
+from .base import metadata_diff
 
 alt.renderers.enable("browser")
 
 SLICE_TITLE_KWARGS = {
     "anchor": "middle",
-    "font": "monospace",
+    "font": "sans-serif",
     "fontWeight": "normal",
     "fontSize": 12,
 }
@@ -26,6 +29,38 @@ CellArgs = Cell | Cell, Cell, Cell
 MetricFunc = Callable[[CellArgs], float | int | np.ndarray]
 MetricFuncDict = dict[str, MetricFunc]
 
+COMMON_METRIC_DICT: MetricFuncDict = {
+    "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"],
+    "Reported Loss Ratio": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"],
+    "Incurred Loss Ratio": lambda cell: 100 * cell["incurred_loss"] / cell["earned_premium"],
+    "Paid Loss": lambda cell: cell["paid_loss"] / 1e6,
+    "Reported Loss": lambda cell: cell["reported_loss"] / 1e6,
+    "Incurred Loss": lambda cell: cell["incurred_loss"] / 1e6,
+    "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
+    "Reported ATA": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"],
+    "Paid Incremental ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"] - 1,
+    "Reported Incremental ATA": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"] - 1,
+}
+
+MetricFuncSpec = MetricFuncDict | str | list[str]
+
+
+def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
+    if isinstance(metric_spec, str):
+        metric_spec = [metric_spec]
+    if isinstance(metric_spec, list):
+        result = {}
+        for ref in metric_spec:
+            if not isinstance(ref, str):
+                raise ValueError("Supplied metric references must be strings")
+            elif ref not in COMMON_METRIC_DICT:
+                raise ValueError(f"Don't know the definition of metric {ref}")
+            else:
+                result[ref] = COMMON_METRIC_DICT[ref]
+        return result
+    else:
+        return metric_spec
+
 
 @alt.theme.register("bermuda_plot_theme", enable=True)
 def bermuda_plot_theme() -> alt.theme.ThemeConfig:
@@ -37,11 +72,11 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
                 "group-subtitle": {"fontSize": 18},
                 "guide-label": {
                     "fontSize": BASE_AXIS_LABEL_FONT_SIZE,
-                    "font": "monospace",
+                    "font": "sans-serif",
                 },
                 "guide-title": {
                     "fontSize": BASE_AXIS_TITLE_FONT_SIZE,
-                    "font": "monospace",
+                    "font": "sans-serif",
                 },
             },
             "mark": {"color": "black"},
@@ -145,7 +180,7 @@ def _plot_right_edge(
         .mark_bar()
         .encode(
             x=alt.X("yearmonth(period_start):O"),
-            y=alt.Y("Earned Premium:Q"),
+            y=alt.Y("Earned Premium:Q").axis(format="$.2s"),
             color=alt.Color("Field:N").scale(range=["lightgray"]),
             tooltip=[
                 alt.Tooltip("period_start:T", title="Period Start"),
@@ -331,9 +366,7 @@ def _plot_data_completeness(
 
 def plot_heatmap(
     triangle: Triangle,
-    metric_dict: MetricFuncDict = {
-        "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"]
-    },
+    metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -343,6 +376,7 @@ def plot_heatmap(
     main_title = alt.Title(
         "Triangle Heatmap",
     )
+    metric_dict = _resolve_metric_spec(metric_spec)
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
@@ -398,7 +432,7 @@ def _plot_heatmap(
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange")).title(name)
+                alt.Color("metric:Q", scale=alt.Scale(range=MANAGUA_VALS)).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -418,19 +452,12 @@ def _plot_heatmap(
         .add_params(selection)
     )
 
-    metric = [v["metric"] for v in metric_data.values if v["metric"] is not None]
-    mean_metric = np.mean(metric)
-    sd_metric = np.std(metric)
-    text_color_predicate = f"datum.metric > {(mean_metric + 2 * sd_metric)} || datum.metric < {(mean_metric - 2 * sd_metric)}"
     text = base.mark_text(
         fontSize=BASE_AXIS_TITLE_FONT_SIZE
         * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
-        font="monospace",
+        font="sans-serif",
     ).encode(
-        text=alt.Text("metric:Q", format=",.1f"),
-        color=alt.when(text_color_predicate)
-        .then(alt.value("lightgray"))
-        .otherwise(alt.value("black")),
+        text=alt.Text("metric:Q", format=",.1f")
     )
 
     return (heatmap + text).resolve_scale(color="independent")
@@ -438,9 +465,7 @@ def _plot_heatmap(
 
 def plot_atas(
     triangle: Triangle,
-    metric_dict: MetricFuncDict = {
-        "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
-    },
+    metric_spec: MetricFuncSpec = ["Paid ATA"],
     ncols: int | None = None,
     width: int = 400,
     height: int = 200,
@@ -450,6 +475,7 @@ def plot_atas(
     main_title = alt.Title(
         "Triangle ATAs",
     )
+    metric_dict = _resolve_metric_spec(metric_spec)
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
@@ -517,9 +543,7 @@ def _plot_atas(
 
 def plot_growth_curve(
     triangle: Triangle,
-    metric_dict: MetricFuncDict = {
-        "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"]
-    },
+    metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -531,6 +555,7 @@ def plot_growth_curve(
     main_title = alt.Title(
         "Triangle Growth Curve",
     )
+    metric_dict = _resolve_metric_spec(metric_spec)
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
@@ -580,8 +605,8 @@ def _plot_growth_curve(
     )
 
     color = (
-        alt.Color("yearmonth(period_start):O")
-        .scale(scheme="viridis")
+        alt.Color("yearmonth(period_start):Q")
+        .scale(range=MANAGUA_VALS)
         .legend(title="Period Start")
     )
     color_none = color.legend(None)
@@ -596,28 +621,27 @@ def _plot_growth_curve(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:O", axis=alt.Axis(grid=True, labelAngle=0))
-        .title("Dev Lag (months)")
-        .scale(nice=False, padding=10),
-        y=alt.X("metric:Q").title(name).scale(padding=10),
+        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0))
+        .title("Dev Lag (months)"),
+        y=alt.X("metric:Q").title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
             alt.Tooltip("metric:Q", format=",.1f", title=name),
         ],
     )
 
-    lines = base.mark_line().encode(
-        color=color_conditional_no_legend, opacity=opacity_conditional
+    lines = base.mark_line(opacity=0.2).encode(
+        color=color_conditional_no_legend
     )
-    points = base.mark_point(stroke="black", filled=True).encode(
+    points = base.mark_point(stroke=None, filled=True).encode(
         color=color_conditional_no_legend,
         opacity=opacity_conditional,
     )
     ultimates = (
-        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(
             color=color_conditional,
             opacity=opacity_conditional,
@@ -659,11 +683,7 @@ def _plot_growth_curve(
 
 def plot_sunset(
     triangle: Triangle,
-    metric_dict: MetricFuncDict = {
-        "Boxcox Paid ATA Factor": lambda cell, prev_cell: boxcox(
-            cell["paid_loss"] / prev_cell["paid_loss"], 0.3
-        )
-    },
+    metric_spec: MetricFuncSpec = ["Paid Incremental ATA"],
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -675,6 +695,7 @@ def plot_sunset(
     main_title = alt.Title(
         "Triangle Sunset",
     )
+    metric_dict = _resolve_metric_spec(metric_spec)
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
@@ -720,8 +741,8 @@ def _plot_sunset(
     )
 
     color = (
-        alt.Color("dev_lag:O")
-        .scale(scheme="blueorange")
+        alt.Color("dev_lag:Q")
+        .scale(range=MANAGUA_VALS)
         .legend(title="Development Lag")
     )
     color_none = color.legend(None)
@@ -739,18 +760,18 @@ def _plot_sunset(
         x=alt.X(
             "yearmonth(evaluation_date):O", axis=alt.Axis(grid=True, labelAngle=0)
         ).title("Calendar Year"),
-        y=alt.X(f"{name}:Q").title(name).scale(type="sqrt"),
+        y=alt.X(f"{name}:Q").title(name).scale(type="pow", exponent=0.3),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
             alt.Tooltip(f"{name}:Q", format=",.1f", title=name),
         ],
     )
 
     points = base.mark_point(
-        stroke="black", size=200 / mark_scaler, filled=True
+        stroke=None, size=30 / mark_scaler, filled=True
     ).encode(
         color=color_conditional,
         opacity=opacity_conditional,
@@ -758,9 +779,9 @@ def _plot_sunset(
     )
     regression = (
         base.transform_loess(
-            "evaluation_date", f"{name}", groupby=["dev_lag"], bandwidth=0.9
+            "evaluation_date", f"{name}", groupby=["dev_lag"], bandwidth=0.6
         )
-        .mark_line(strokeWidth=3)
+        .mark_line(strokeWidth=2)
         .encode(color=color_conditional_no_legend, opacity=opacity_conditional)
     )
 
@@ -795,9 +816,7 @@ def _plot_sunset(
 
 def plot_mountain(
     triangle: Triangle,
-    metric_dict: MetricFuncDict = {
-        "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"]
-    },
+    metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -809,6 +828,7 @@ def plot_mountain(
     main_title = alt.Title(
         "Triangle Mountain Plot",
     )
+    metric_dict = _resolve_metric_spec(metric_spec)
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
@@ -858,8 +878,8 @@ def _plot_mountain(
     )
 
     color = (
-        alt.Color("dev_lag:O")
-        .scale(scheme="blueorange")
+        alt.Color("dev_lag:Q")
+        .scale(range=MANAGUA_VALS)
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -882,7 +902,7 @@ def _plot_mountain(
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
             alt.Tooltip("metric:Q", format=",.1f", title=name),
         ],
     )
@@ -890,7 +910,7 @@ def _plot_mountain(
     lines = base.mark_line().encode(
         color=color_conditional_no_legend, opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, stroke="black").encode(
+    points = base.mark_point(filled=True, stroke=None).encode(
         color=color_conditional,
         opacity=opacity_conditional,
     )
@@ -985,8 +1005,8 @@ def _plot_ballistic(
     )
 
     color = (
-        alt.Color("dev_lag:O")
-        .scale(scheme="blueorange")
+        alt.Color("dev_lag:Q")
+        .scale(range=MANAGUA_VALS)
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -1026,10 +1046,10 @@ def _plot_ballistic(
         detail="period_start:N", opacity=opacity_conditional
     )
     points = base.mark_point(
-        filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
+        filled=True, size=100 / mark_scaler, stroke=None
     ).encode(color=color_conditional, opacity=opacity_conditional)
     ultimates = (
-        base.mark_point(size=200 / mark_scaler, filled=True, stroke="black")
+        base.mark_point(size=200 / mark_scaler, filled=True, stroke=None)
         .encode(color=color_conditional, opacity=opacity_conditional)
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
@@ -1114,8 +1134,8 @@ def _plot_broom(
     )
 
     color = (
-        alt.Color("dev_lag:O")
-        .scale(scheme="blueorange")
+        alt.Color("dev_lag:Q")
+        .scale(range=MANAGUA_VALS)
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -1136,7 +1156,7 @@ def _plot_broom(
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
             alt.Tooltip(f"{name_x}:Q", format=".1f"),
             alt.Tooltip(f"{name_y}:Q", format=".1f"),
         ],
@@ -1152,14 +1172,14 @@ def _plot_broom(
         detail="period_start:N", opacity=opacity_conditional
     )
     points = base.mark_point(
-        filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
+        filled=True, size=100 / mark_scaler, stroke=None
     ).encode(
         color=color_conditional,
         opacity=opacity_conditional,
         strokeOpacity=opacity_conditional,
     )
     ultimates = (
-        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(
             color=color_conditional,
             opacity=opacity_conditional,
@@ -1249,8 +1269,8 @@ def _plot_drip(
     )
 
     color = (
-        alt.Color("dev_lag:O")
-        .scale(scheme="blueorange")
+        alt.Color("dev_lag:Q")
+        .scale(range=MANAGUA_VALS)
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -1271,7 +1291,7 @@ def _plot_drip(
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
             alt.Tooltip(f"{name_x}:Q", format=".1f"),
             alt.Tooltip(f"{name_y}:Q", format=".1f"),
         ],
@@ -1281,10 +1301,10 @@ def _plot_drip(
         detail="period_start:N", opacity=opacity_conditional
     )
     points = base.mark_point(
-        filled=True, size=100 / mark_scaler, stroke="black", strokeWidth=1 / mark_scaler
+        filled=True, size=100 / mark_scaler, stroke=None
     ).encode(color=color_conditional, opacity=opacity_conditional)
     ultimates = (
-        base.mark_point(size=300 / mark_scaler, filled=True, stroke="black")
+        base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(color=color_conditional, opacity=opacity_conditional)
         .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
     )
@@ -1333,7 +1353,7 @@ def _build_metric_slice_charts(
     n_slices = len(triangle.slices)
     for i, (_, triangle_slice) in enumerate(triangle.slices.items()):
         if facet_titles is None:
-            slice_title = f"{(n_slices > 1) * ('slice ' + str(i + 1))}"
+            slice_title = _slice_label(triangle_slice, triangle)
         else:
             slice_title = facet_titles[i]
         if plot_kwargs.get("metric_dict") is not None:
@@ -1445,10 +1465,84 @@ def _concat_charts(charts: list[alt.Chart], ncols: int, **kwargs) -> alt.Chart:
     return fig
 
 
-def boxcox(x: float, p: float):
-    return (x**p - 1) / p
-
-
 def _determine_facet_cols(n: int):
     """This is a replication of grDevices::n2mfrow in R"""
     return int(min(n, np.ceil(n / np.sqrt(n))))
+
+
+_MANAGUA_RAW = [
+    [1, 0.81263, 0.40424],
+    [0.92706, 0.69585, 0.36536],
+    [0.85597, 0.58963, 0.32987],
+    [0.78516, 0.4928, 0.29757],
+    [0.71247, 0.40508, 0.26891],
+    [0.633, 0.32425, 0.24442],
+    [0.54243, 0.24891, 0.22689],
+    [0.44962, 0.18873, 0.22534],
+    [0.37143, 0.15932, 0.25403],
+    [0.32066, 0.17283, 0.32465],
+    [0.29878, 0.22656, 0.42904],
+    [0.3009, 0.30548, 0.54191],
+    [0.32092, 0.39385, 0.64188],
+    [0.35064, 0.48323, 0.72305],
+    [0.38579, 0.57766, 0.79429],
+    [0.4241, 0.67996, 0.86256],
+    [0.46377, 0.78936, 0.93036],
+    [0.50411, 0.90708, 0.99978]
+]
+
+
+def _float_to_rgb(color_float: tuple[float, float, float]) -> str:
+    rf, gf, bf = color_float
+    r = round(rf * 255)
+    g = round(gf * 255)
+    b = round(bf * 255)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+MANAGUA_VALS = [_float_to_rgb(val) for val in _MANAGUA_RAW]
+
+
+def _slice_label(slice_tri: Triangle, base_tri: Triangle):
+    slice_metadata = metadata_diff(base_tri.common_metadata, slice_tri.common_metadata)
+
+    # Custom elements
+    custom_elems = []
+    for label, value in {**slice_metadata.details, **slice_metadata.loss_details}.items():
+        custom_elems.append(f"{string.capwords(label)}: {value}")
+
+    # Bare elements
+    bare_elems = []
+    if slice_metadata.country is not None:
+        bare_elems.append(slice_metadata.country)
+    if slice_metadata.reinsurance_basis is not None:
+        bare_elems.append(slice_metadata.reinsurance_basis)
+    if slice_metadata.loss_definition is not None:
+        bare_elems.append(slice_metadata.loss_definition)
+
+    # Decorated elements
+    decorated_elems = []
+    if slice_metadata.per_occurrence_limit is not None:
+        decorated_elems.append(f"limit {slice_metadata.per_occurrence_limit}")
+    if slice_metadata.risk_basis is not None:
+        decorated_elems.append(f"{slice_metadata.risk_basis} Basis")
+    if slice_metadata.currency is not None:
+        decorated_elems.append(f"in {slice_metadata.currency}")
+
+    custom_label = ", ".join(custom_elems)
+    bare_label = " ".join(bare_elems)
+    decorated_label = "(" + ", ".join(decorated_elems) + ")"
+
+    label = ""
+    if custom_label:
+        label += custom_label
+    if label and bare_label:
+        label += "; "
+    if bare_label:
+        label += bare_label
+    if label and len(decorated_label) > 2:
+        label += " "
+    if len(decorated_label) > 2:
+        label += decorated_label
+
+    return label
