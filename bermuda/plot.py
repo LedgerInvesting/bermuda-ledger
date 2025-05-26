@@ -1,3 +1,5 @@
+import string
+
 import altair as alt
 from babel.numbers import get_currency_symbol
 import pandas as pd
@@ -5,6 +7,7 @@ import numpy as np
 from typing import Callable, Any, Literal
 
 from .triangle import Triangle, Cell
+from .base import metadata_diff
 
 alt.renderers.enable("browser")
 
@@ -1350,7 +1353,7 @@ def _build_metric_slice_charts(
     n_slices = len(triangle.slices)
     for i, (_, triangle_slice) in enumerate(triangle.slices.items()):
         if facet_titles is None:
-            slice_title = f"{(n_slices > 1) * ('slice ' + str(i + 1))}"
+            slice_title = _slice_label(triangle_slice, triangle)
         else:
             slice_title = facet_titles[i]
         if plot_kwargs.get("metric_dict") is not None:
@@ -1498,3 +1501,48 @@ def _float_to_rgb(color_float: tuple[float, float, float]) -> str:
 
 
 MANAGUA_VALS = [_float_to_rgb(val) for val in _MANAGUA_RAW]
+
+
+def _slice_label(slice_tri: Triangle, base_tri: Triangle):
+    slice_metadata = metadata_diff(base_tri.common_metadata, slice_tri.common_metadata)
+
+    # Custom elements
+    custom_elems = []
+    for label, value in {**slice_metadata.details, **slice_metadata.loss_details}.items():
+        custom_elems.append(f"{string.capwords(label)}: {value}")
+
+    # Bare elements
+    bare_elems = []
+    if slice_metadata.country is not None:
+        bare_elems.append(slice_metadata.country)
+    if slice_metadata.reinsurance_basis is not None:
+        bare_elems.append(slice_metadata.reinsurance_basis)
+    if slice_metadata.loss_definition is not None:
+        bare_elems.append(slice_metadata.loss_definition)
+
+    # Decorated elements
+    decorated_elems = []
+    if slice_metadata.per_occurrence_limit is not None:
+        decorated_elems.append(f"limit {slice_metadata.per_occurrence_limit}")
+    if slice_metadata.risk_basis is not None:
+        decorated_elems.append(f"{slice_metadata.risk_basis} Basis")
+    if slice_metadata.currency is not None:
+        decorated_elems.append(f"in {slice_metadata.currency}")
+
+    custom_label = ", ".join(custom_elems)
+    bare_label = " ".join(bare_elems)
+    decorated_label = "(" + ", ".join(decorated_elems) + ")"
+
+    label = ""
+    if custom_label:
+        label += custom_label
+    if label and bare_label:
+        label += "; "
+    if bare_label:
+        label += bare_label
+    if label and len(decorated_label) > 2:
+        label += " "
+    if len(decorated_label) > 2:
+        label += decorated_label
+
+    return label
