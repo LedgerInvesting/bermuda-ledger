@@ -13,7 +13,7 @@ def test_plot_data_completeness():
         metadata=Metadata(details={"id": 1})
     )
     test2 = test.derive_metadata(id=2)
-    test2.plot_data_completeness().show()
+    test2.plot_data_completeness()
     (test + test2).plot_data_completeness()
 
 def test_plot_data_completeness_with_predictions():
