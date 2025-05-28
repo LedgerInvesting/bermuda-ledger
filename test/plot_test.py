@@ -13,7 +13,7 @@ def test_plot_data_completeness():
         metadata=Metadata(details={"id": 1})
     )
     test2 = test.derive_metadata(id=2)
-    test2.plot_data_completeness()
+    test2.plot_data_completeness().show()
     (test + test2).plot_data_completeness()
 
 def test_plot_data_completeness_with_predictions():
@@ -92,7 +92,6 @@ def test_plot_atas():
             "Paid": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"], 
             "Reported": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]
         }, 
-        width=500, height=200,
     )
 
 
