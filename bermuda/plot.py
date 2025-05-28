@@ -517,12 +517,12 @@ def _plot_atas(
         alt.Tooltip("period_start:T", title="Period Start"),
         alt.Tooltip("period_end:T", title="Period End"),
         alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-        alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+        alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
         alt.Tooltip("metric:Q", title=name, format=".2f"),
     ]
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0))
+        x=alt.X("dev_lag:Q")
         .title("Dev Lag (months)")
         .scale(padding=10),
         y=alt.X("metric:Q").title(name).scale(zero=False, padding=10),
@@ -1027,7 +1027,7 @@ def _plot_ballistic(
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
+            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
             alt.Tooltip(f"{name_x}:Q", format=".1f"),
             alt.Tooltip(f"{name_y}:Q", format=".1f"),
         ],

@@ -92,7 +92,6 @@ def test_plot_atas():
             "Paid": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"], 
             "Reported": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"]
         }, 
-        width=500, height=200,
     )
 
 
