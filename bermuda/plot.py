@@ -460,7 +460,7 @@ def _plot_heatmap(
         text=alt.Text("metric:Q", format=",.1f")
     )
 
-    return (heatmap + text)#.resolve_scale(color="independent")
+    return (heatmap + text)
 
 
 def plot_atas(
