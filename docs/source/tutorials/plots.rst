@@ -237,16 +237,17 @@ Plotting custom metric functions
 While the plots above all have their default metrics, users can change which metrics are shown,
 depending on the plot type. There are currently two ways of displaying custom
 metrics. The ``plot_heatmap``, ``plot_growth_curve``, ``plot_mountain``, ``plot_atas``,
-and ``plot_sunset`` plots each have a ``metric_dict`` keyword argument which is a dictionary
+and ``plot_sunset`` plots each have a ``metric_spec`` keyword argument which can either be
+a list of common metric names (strings), or a dictionary
 of metric name-metric function key-value pairs. Multiple metrics are displayed as faceted/panel
 plots. For instance, imagine we want to plot paid and reported losses as growth curves. We
-can do so by filling the ``metric_dict`` argument with two (lambda) functions of each cell
+can do so by filling the ``metric_spec`` argument with two (lambda) functions of each cell
 in the triangle.
 
 .. altair-plot::
 
    triangle.plot_growth_curve(
-       metric_dict = {
+       metric_spec = {
            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
            "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
         },
@@ -257,6 +258,9 @@ in the triangle.
 Notice that the keys of the dictionary are mapped to the plot names when there are multiple
 metrics.
 
+We could have created the same plot by passing the list of ``["Paid Loss Ratio", "Reported Loss Ratio"]``
+to ``metric_spec``.
+
 The metric functions can either be a function of each cell, or a function of each cell and
 the previous cell. This option is only applied to cells within the same experience period.
 For instance, if we wanted to plot paid and reported ATAs, we could utilize this pattern:
@@ -264,12 +268,12 @@ For instance, if we wanted to plot paid and reported ATAs, we could utilize this
 .. altair-plot::
 
    triangle.plot_atas(
-       metric_dict = {
+       metric_spec = ["Paid ATA", "Reported ATA"], 
            "Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
            "Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"],
         },
-        width=300,
-        height=200,
+       width=300,
+       height=200,
     )
 
 The ``plot_ballistic``, ``plot_broom``, ``plot_drip``, and ``plot_hose`` plots can't plot multiple
@@ -301,8 +305,8 @@ As an example, here's the heatmap plot for multiple slices and multiple metrics.
 
 .. altair-plot::
 
-   (triangle.derive_metadata(id=1) + triangle.derive_metadata(id=2)).plot_heatmap(
-       metric_dict = {
+   (triangle.derive_metadata(ID=1) + triangle.derive_metadata(ID=2)).plot_heatmap(
+       metric_spec = {
            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
            "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
         },
@@ -316,7 +320,7 @@ Users can also specify the ``ncols`` argument to change how many columns are fac
 
 .. altair-plot::
 
-   (triangle.derive_metadata(id=1) + triangle.derive_metadata(id=2)).plot_data_completeness(
+   (triangle.derive_metadata(ID=1) + triangle.derive_metadata(ID=2)).plot_data_completeness(
        ncols=1,
        width=400,
        height=300,
@@ -463,19 +467,16 @@ have a single legend. This could be handled by the following:
 
 .. altair-plot::
 
-   (triangle.derive_metadata(id=1) + triangle.derive_metadata(id=2)).plot_heatmap(
-       metric_dict = {
-           "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
-           "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"] * 1.2,
-        },
-        width=300,
-        height=200,
-    ).resolve_scale(
-        color="shared",
-    ).resolve_legend(
-        color="shared",
-    ).configure_legend(
-        direction="horizontal",
-        orient="top",
-    )
+   (triangle.derive_metadata(ID=1) + triangle.derive_metadata(ID=2)).plot_heatmap(
+       metric_spec = ["Paid Loss Ratio", "Reported Loss Ratio"],
+       width=300,
+       height=200,
+   ).resolve_scale(
+       color="shared",
+   ).configure_legend(
+       direction="horizontal",
+       orient="top",
+   ).resolve_legend(
+       color="shared",
+   )
 
