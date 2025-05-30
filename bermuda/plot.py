@@ -1492,6 +1492,14 @@ def _calculate_field_summary(
 
     metric = _safe_apply_metric(cell, prev_cell, func, name)
 
+    if metric is None:
+        return {
+            f"{name}": None,
+            f"{name}_sd": None,
+            f"{name}_lower_ci": None,
+            f"{name}_upper_ci": None,
+        }
+
     if np.isscalar(metric) or len(metric) == 1:
         return {
             f"{name}": metric,
@@ -1511,12 +1519,6 @@ def _calculate_field_summary(
 
 
 def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc, name: str):
-    none_dict = {
-        f"{name}": None,
-        f"{name}_sd": None,
-        f"{name}_lower_ci": None,
-        f"{name}_upper_ci": None,
-    }
     try:
         return func(cell, prev_cell)
         if prev_cell.period != cell.period:
@@ -1526,11 +1528,11 @@ def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc, nam
             try:
                 return func(cell)
             except Exception:
-                return none_dict
+                return None
         elif "'NoneType' object is not subscriptable" in e.args[0]:
-            return none_dict
+            return None
     except Exception:
-        return none_dict
+        return None
 
 def _compute_font_sizes(mark_scaler: int) -> dict[str, float | int]:
     return {

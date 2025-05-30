@@ -268,7 +268,7 @@ For instance, if we wanted to plot paid and reported ATAs, we could utilize this
 .. altair-plot::
 
    triangle.plot_atas(
-       metric_spec = ["Paid ATA", "Reported ATA"], 
+       metric_spec = {
            "Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
            "Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"],
         },
@@ -439,21 +439,19 @@ titles and changing the legend positioning.
    triangle_predictions.derive_metadata(
        id = lambda cell: cell.period_start
    ).plot_growth_curve(
-       width=150, height=100, ncols=5, facet_titles=[""]*len(triangle.periods)
+       width=150, height=100, ncols=5, 
+       facet_titles=[str(period[0].year) for period in triangle_predictions.periods],
+       uncertainty_type="spaghetti",
    ).resolve_scale(
-       x="shared", y="shared", 
+       x="shared", y="shared", color="independent", 
    ).resolve_axis(
        y="shared"
    ).properties(
        background="#eeeeee",
-   ).configure_legend(
-       orient="top",
-       direction="horizontal",
-       titleFontSize=10,
-       labelFontSize=10,
-       offset=1,
    ).configure_concat(
        spacing=2,
+   ).configure_title(
+       offset=1,
    ).interactive()
 
 
