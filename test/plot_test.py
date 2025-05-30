@@ -117,6 +117,7 @@ def test_plot_growth_curve_with_predictions():
 
     test_predictions.plot_growth_curve()
     test_predictions.plot_growth_curve(uncertainty_type = "segments")
+    test_predictions.plot_growth_curve(uncertainty_type = "spaghetti", n_lines=50)
     test_predictions.plot_growth_curve({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
