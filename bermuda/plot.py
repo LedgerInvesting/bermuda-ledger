@@ -1389,9 +1389,10 @@ def plot_histogram(
     main_title = alt.Title(
         "Triangle Histogram"
     )
-    n_slices = len(triangle.slices)
-    max_cols = ncols or _determine_facet_cols(n_slices)
     metric_dict = _resolve_metric_spec(metric_spec)
+    n_slices = len(triangle.slices)
+    n_metrics = len(metric_spec)
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = _build_metric_slice_charts(
         triangle,
         plot_func=_plot_histogram,
