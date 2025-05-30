@@ -50,6 +50,7 @@ from .plot import (
     plot_broom,
     plot_drip,
     plot_hose,
+    plot_histogram,
 )
 
 # utils
@@ -172,4 +173,7 @@ Triangle.plot_hose = wraps(plot_hose)(
 )
 Triangle.plot_sunset = wraps(plot_sunset)(
     lambda self, *args, **kwargs: plot_sunset(self, *args, **kwargs)
+)
+Triangle.plot_histogram = wraps(plot_histogram)(
+    lambda self, *args, **kwargs: plot_histogram(self, *args, **kwargs)
 )

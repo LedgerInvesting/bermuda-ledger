@@ -1346,6 +1346,58 @@ def plot_hose(
     ).properties(title="Triangle Hose Plot")
 
 
+def plot_histogram(
+    triangle: Triangle,
+    metric_spec: MetricFuncSpec = "Paid Loss",
+    width: int = 400,
+    height: int = 200,
+    ncols: int | None = None,
+    facet_titles: list[str] | None = None,
+) -> alt.Chart:
+    main_title = alt.Title(
+        "Triangle Histogram"
+    )
+    n_slices = len(triangle.slices)
+    max_cols = ncols or _determine_facet_cols(n_slices)
+    metric_dict = _resolve_metric_spec(metric_spec)
+    fig = _build_metric_slice_charts(
+        triangle,
+        plot_func=_plot_histogram,
+        metric_dict=metric_dict,
+        title=main_title,
+        facet_titles=facet_titles,
+        width=width,
+        height=height,
+        ncols=max_cols,
+    ).configure_axis(**_compute_font_sizes(max_cols))
+    return fig
+
+
+def _plot_histogram(
+    triangle: Triangle,
+    metric: MetricFunc,
+    name: str,
+    title: alt.Title,
+) -> alt.Chart:
+
+    metric_data = alt.Data(values=[
+            {
+                name: value,
+                "iteration": i,
+            }
+            for cell
+            in triangle
+            for i, value in enumerate(_scalar_or_array_to_iter(metric(cell)))
+    ])
+
+    histogram = alt.Chart(metric_data, title=title).mark_bar().encode(
+        x=alt.X(f"{name}:Q").bin().title(name),
+        y=alt.Y("count()").title("Count"),
+    )
+
+    return histogram
+
+
 def _build_metric_slice_charts(
     triangle, plot_func, title, facet_titles, width, height, ncols, **plot_kwargs
 ):
@@ -1546,3 +1598,9 @@ def _slice_label(slice_tri: Triangle, base_tri: Triangle):
         label += decorated_label
 
     return label
+
+
+def _scalar_or_array_to_iter(x: float | int | list | np.ndarray) -> np.ndarray:
+    if np.isscalar(x):
+        return np.array([x])
+    return x
