@@ -545,7 +545,9 @@ def plot_growth_curve(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
     uncertainty: bool = True,
-    uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
+    uncertainty_type: Literal["ribbon", "segments", "spaghetti"] = "ribbon",
+    n_lines: int = 100,
+    seed: int | None = None,
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
@@ -566,6 +568,8 @@ def plot_growth_curve(
             metric_dict=metric_dict,
             uncertainty=uncertainty,
             uncertainty_type=uncertainty_type,
+            n_lines=n_lines,
+            seed=seed,
             mark_scaler=max_cols,
             title=main_title,
             facet_titles=facet_titles,
@@ -584,23 +588,37 @@ def _plot_growth_curve(
     metric: MetricFunc,
     name: str,
     title: alt.Title,
-    mark_scaler: int,
     uncertainty: bool,
-    uncertainty_type: Literal["ribbon", "segments"],
+    uncertainty_type: Literal["ribbon", "segments", "spaghetti"],
+    mark_scaler: int,
+    n_lines: int = 100,
+    seed: int | None = None,
 ) -> alt.Chart:
-    metric_data = alt.Data(
-        values=[
-            *[
+
+    if uncertainty_type == "spaghetti":
+        triangle_thinned = triangle.thin(num_samples=n_lines)
+        spaghetti_data = alt.Data(
+            values=[
                 {
                     **_core_plot_data(cell),
-                    "last_lag": max(
-                        triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                    ),
-                    **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                    "Field": name,
+                    "metric_sample": value,
+                    "iteration": i,
                 }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(triangle_thinned, [None, *triangle_thinned[:-1]])
+                for i, value in enumerate(_scalar_or_array_to_iter(_safe_apply_metric(cell, prev_cell, metric, "")))
             ]
+        )
+
+    metric_data = alt.Data(
+        values=[
+            {
+                **_core_plot_data(cell),
+                "last_lag": max(
+                    triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
+                ),
+                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
+            }
+            for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
         ]
     )
 
@@ -636,10 +654,12 @@ def _plot_growth_curve(
     lines = base.mark_line(opacity=0.2).encode(
         color=color_conditional_no_legend
     )
+
     points = base.mark_point(stroke=None, filled=True).encode(
         color=color_conditional_no_legend,
         opacity=opacity_conditional,
     )
+
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(
@@ -671,12 +691,24 @@ def _plot_growth_curve(
             color=color_conditional_no_legend,
             opacity=opacity_conditional,
         )
+    elif uncertainty and uncertainty_type == "spaghetti":
+        errors = alt.Chart(spaghetti_data).mark_line(opacity=0.2).encode(
+            x=alt.X("dev_lag:Q"),
+            y=alt.X("metric_sample:Q"),
+            detail="iteration:N",
+            color=color_conditional_no_legend,
+        )
     else:
         errors = alt.LayerChart()
 
+    if len(triangle.periods) == 1:
+        scale_color="shared"
+    else:
+        scale_color="independent"
+
     return (
         alt.layer(errors + lines + points, ultimates.add_params(selector))
-        .resolve_scale(color="independent")
+        .resolve_scale(color=scale_color)
         .interactive()
     )
 
@@ -1346,6 +1378,59 @@ def plot_hose(
     ).properties(title="Triangle Hose Plot")
 
 
+def plot_histogram(
+    triangle: Triangle,
+    metric_spec: MetricFuncSpec = "Paid Loss",
+    width: int = 400,
+    height: int = 200,
+    ncols: int | None = None,
+    facet_titles: list[str] | None = None,
+) -> alt.Chart:
+    main_title = alt.Title(
+        "Triangle Histogram"
+    )
+    metric_dict = _resolve_metric_spec(metric_spec)
+    n_slices = len(triangle.slices)
+    n_metrics = len(metric_spec)
+    max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
+    fig = _build_metric_slice_charts(
+        triangle,
+        plot_func=_plot_histogram,
+        metric_dict=metric_dict,
+        title=main_title,
+        facet_titles=facet_titles,
+        width=width,
+        height=height,
+        ncols=max_cols,
+    ).configure_axis(**_compute_font_sizes(max_cols))
+    return fig
+
+
+def _plot_histogram(
+    triangle: Triangle,
+    metric: MetricFunc,
+    name: str,
+    title: alt.Title,
+) -> alt.Chart:
+
+    metric_data = alt.Data(values=[
+            {
+                name: value,
+                "iteration": i,
+            }
+            for cell
+            in triangle
+            for i, value in enumerate(_scalar_or_array_to_iter(metric(cell)))
+    ])
+
+    histogram = alt.Chart(metric_data, title=title).mark_bar().encode(
+        x=alt.X(f"{name}:Q").bin().title(name),
+        y=alt.Y("count()").title("Count"),
+    )
+
+    return histogram
+
+
 def _build_metric_slice_charts(
     triangle, plot_func, title, facet_titles, width, height, ncols, **plot_kwargs
 ):
@@ -1397,6 +1482,7 @@ def _core_plot_data(cell: Cell) -> dict[str, Any]:
     }
 
 
+
 def _calculate_field_summary(
     cell: Cell,
     prev_cell: Cell | None,
@@ -1404,26 +1490,16 @@ def _calculate_field_summary(
     name: str,
     probs: tuple[float, float] = (0.05, 0.95),
 ):
-    none_dict = {
-        f"{name}": None,
-        f"{name}_sd": None,
-        f"{name}_lower_ci": None,
-        f"{name}_upper_ci": None,
-    }
-    try:
-        metric = func(cell, prev_cell)
-        if prev_cell.period != cell.period:
-            raise IndexError
-    except TypeError as e:
-        if "takes 1 positional argument but 2 were given" in e.args[0]:
-            try:
-                metric = func(cell)
-            except Exception:
-                return none_dict
-        elif "'NoneType' object is not subscriptable" in e.args[0]:
-            return none_dict
-    except Exception:
-        return none_dict
+
+    metric = _safe_apply_metric(cell, prev_cell, func, name)
+
+    if metric is None:
+        return {
+            f"{name}": None,
+            f"{name}_sd": None,
+            f"{name}_lower_ci": None,
+            f"{name}_upper_ci": None,
+        }
 
     if np.isscalar(metric) or len(metric) == 1:
         return {
@@ -1442,6 +1518,22 @@ def _calculate_field_summary(
         f"{name}_upper_ci": upper,
     }
 
+
+def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc, name: str):
+    try:
+        return func(cell, prev_cell)
+        if prev_cell.period != cell.period:
+            raise IndexError
+    except TypeError as e:
+        if "takes 1 positional argument but 2 were given" in e.args[0]:
+            try:
+                return func(cell)
+            except Exception:
+                return None
+        elif "'NoneType' object is not subscriptable" in e.args[0]:
+            return None
+    except Exception:
+        return None
 
 def _compute_font_sizes(mark_scaler: int) -> dict[str, float | int]:
     return {
@@ -1546,3 +1638,9 @@ def _slice_label(slice_tri: Triangle, base_tri: Triangle):
         label += decorated_label
 
     return label
+
+
+def _scalar_or_array_to_iter(x: float | int | list | np.ndarray) -> np.ndarray:
+    if np.isscalar(x):
+        return np.array([x])
+    return x

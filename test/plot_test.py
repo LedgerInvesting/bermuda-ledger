@@ -117,6 +117,7 @@ def test_plot_growth_curve_with_predictions():
 
     test_predictions.plot_growth_curve()
     test_predictions.plot_growth_curve(uncertainty_type = "segments")
+    test_predictions.plot_growth_curve(uncertainty_type = "spaghetti", n_lines=50)
     test_predictions.plot_growth_curve({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
 
@@ -244,4 +245,17 @@ def test_plot_sunset_with_predictions():
 
     test_predictions.plot_sunset()
     test_predictions.plot_sunset(uncertainty_type = "segments")
+
+
+def test_plot_histogram():
+    raw = meyers_tri.derive_metadata(id=1)[-2:].derive_fields(
+        paid_loss = lambda cell: cell["paid_loss"] * 0.8
+    )
+    test = raw.derive_fields(
+        reported_loss = lambda cell: np.random.normal(cell["reported_loss"], 1e5, 10_000),
+        paid_loss = lambda cell: np.random.normal(cell["paid_loss"], 1e5, 10_000),
+    )
+    test2 = test.derive_metadata(id=2)
+    test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"])
+    (test + test2).plot_histogram(["Paid Loss", "Reported Loss"])
 
