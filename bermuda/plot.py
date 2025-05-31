@@ -1424,7 +1424,7 @@ def _plot_histogram(
     ])
 
     histogram = alt.Chart(metric_data, title=title).mark_bar().encode(
-        x=alt.X(f"{name}:Q").bin().title(name),
+        x=alt.X(f"{name}:Q").bin({"maxbins": 50}).title(name),
         y=alt.Y("count()").title("Count"),
     )
 
@@ -1469,6 +1469,7 @@ def _build_metric_slice_charts(
         _concat_charts(charts, title=title, ncols=ncols)
         .configure_axis(**_compute_font_sizes(ncols))
         .configure_legend(**_compute_font_sizes(ncols))
+        .configure_mark(color="#1f8fff")
     )
     return fig
 
