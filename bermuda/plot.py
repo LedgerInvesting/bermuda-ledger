@@ -855,6 +855,7 @@ def plot_mountain(
     height: int = 200,
     ncols: int | None = None,
     facet_titles: list[str] | None = None,
+    highlight_ultimates: bool = True,
 ) -> alt.Chart:
     """Plot triangle metrics as a mountain."""
     main_title = alt.Title(
@@ -871,6 +872,7 @@ def plot_mountain(
             metric_dict=metric_dict,
             uncertainty=uncertainty,
             uncertainty_type=uncertainty_type,
+            highlight_ultimates=highlight_ultimates,
             mark_scaler=max_cols,
             title=main_title,
             facet_titles=facet_titles,
@@ -892,22 +894,36 @@ def _plot_mountain(
     mark_scaler: int,
     uncertainty: bool,
     uncertainty_type: Literal["ribbon", "segments"],
+    highlight_ultimates: bool = True,
 ) -> alt.Chart:
+    metric_triangle = triangle.clip(max_dev=triangle.dev_lags()[-2]) if highlight_ultimates else triangle
     metric_data = alt.Data(
         values=[
-            *[
+            {
+                **_core_plot_data(cell),
+                "last_lag": max(
+                    triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
+                ),
+                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
+                "Field": name,
+            }
+            for cell, prev_cell in zip(metric_triangle, [None, *metric_triangle[:-1]])
+        ]
+    )
+
+    if highlight_ultimates:
+        ultimate_triangle = triangle.right_edge
+        ultimate_data = alt.Data(
+            values=[
                 {
                     **_core_plot_data(cell),
-                    "last_lag": max(
-                        triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                    ),
                     **_calculate_field_summary(cell, prev_cell, metric, "metric"),
                     "Field": name,
                 }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
+                for cell, prev_cell in zip(ultimate_triangle, [None, *ultimate_triangle[:-1]])
             ]
-        ]
-    )
+        )
+
 
     color = (
         alt.Color("dev_lag:Q")
@@ -920,30 +936,28 @@ def _plot_mountain(
     opacity_conditional = (
         alt.when(selector).then(alt.OpacityValue(1)).otherwise(alt.OpacityValue(0.2))
     )
-    color_conditional = alt.when(selector).then(color).otherwise(alt.value("lightgray"))
-    color_conditional_no_legend = (
-        alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
-    )
+
+    tooltip = [
+        alt.Tooltip("period_start:T", title="Period Start"),
+        alt.Tooltip("period_end:T", title="Period End"),
+        alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
+        alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
+        alt.Tooltip("metric:Q", format=",.1f", title=name),
+    ]
 
     base = alt.Chart(metric_data, title=title).encode(
         x=alt.X(
             "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
         ).title("Period Start"),
         y=alt.X("metric:Q").title(name),
-        tooltip=[
-            alt.Tooltip("period_start:T", title="Period Start"),
-            alt.Tooltip("period_end:T", title="Period End"),
-            alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-            alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-            alt.Tooltip("metric:Q", format=",.1f", title=name),
-        ],
+        tooltip=tooltip,
     )
 
     lines = base.mark_line().encode(
-        color=color_conditional_no_legend, opacity=opacity_conditional
+        color=color_none, opacity=opacity_conditional
     )
     points = base.mark_point(filled=True, stroke=None).encode(
-        color=color_conditional,
+        color=color,
         opacity=opacity_conditional,
     )
 
@@ -956,20 +970,52 @@ def _plot_mountain(
         errors = base.mark_area().encode(
             y=alt.Y("metric_lower_ci:Q"),
             y2=alt.Y2("metric_upper_ci:Q"),
-            color=color_conditional_no_legend,
+            color=color_none,
             opacity=ribbon_conditional,
         )
     elif uncertainty and uncertainty_type == "segments":
         errors = base.mark_errorbar(thickness=5).encode(
             y=alt.Y("metric_lower_ci:Q").axis(title=name),
             y2=alt.Y2("metric_upper_ci:Q"),
-            color=color_conditional_no_legend,
+            color=color_none,
             opacity=opacity_conditional,
         )
     else:
         errors = alt.LayerChart()
 
-    return alt.layer(errors + lines, points.add_params(selector)).resolve_scale(
+    if highlight_ultimates:
+        ultimate_base = alt.Chart(ultimate_data).encode(
+            x=alt.X(
+                "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
+            ).title("Period Start"),
+            y=alt.X("metric:Q").title(name),
+            tooltip=tooltip,
+        )
+        ultimates = ultimate_base.mark_line().encode(
+            color=alt.ColorValue("gray"),
+        )
+        ultimates += ultimate_base.mark_point(filled=True).encode(
+            color=alt.ColorValue("gray"),
+        )
+
+        if uncertainty and uncertainty_type=="ribbon":
+            ultimates += ultimate_base.mark_area().encode(
+                y=alt.Y("metric_lower_ci:Q"),
+                y2=alt.Y2("metric_upper_ci:Q"),
+                color=alt.ColorValue("gray"),
+                opacity=ribbon_conditional,
+            )
+        if uncertainty and uncertainty_type=="segments":
+            ultimates += ultimate_base.mark_errorbar(thickness=5).encode(
+                y=alt.Y("metric_lower_ci:Q").axis(title=name),
+                y2=alt.Y2("metric_upper_ci:Q"),
+                color=alt.ColorValue("gray"),
+                opacity=opacity_conditional,
+            )
+    else:
+        ultimates = alt.LayerChart()
+
+    return alt.layer(lines, points.add_params(selector), errors, ultimates).resolve_scale(
         color="independent"
     )
 

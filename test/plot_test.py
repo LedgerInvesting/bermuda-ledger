@@ -136,11 +136,11 @@ def test_plot_mountain_with_predictions():
         paid_loss = lambda cell: cell["paid_loss"] * 0.8
     )
     test_predictions = test.derive_fields(
-        reported_loss = lambda cell: cell["reported_loss"] if cell.dev_lag() < 108 else np.random.normal(cell["reported_loss"], 1e5, 10_000),
-        paid_loss = lambda cell: cell["paid_loss"] if cell.dev_lag() < 108 else np.random.normal(cell["paid_loss"], 1e5, 10_000),
+        reported_loss = lambda cell: cell["reported_loss"] if cell.dev_lag() < 108 else np.random.normal(cell["reported_loss"], 2e5, 10_000),
+        paid_loss = lambda cell: cell["paid_loss"] if cell.dev_lag() < 108 else np.random.normal(cell["paid_loss"], 2e5, 10_000),
     )
 
-    test_predictions.plot_mountain()
+    test_predictions.plot_mountain(highlight_ultimates=True)
     test_predictions.plot_mountain(uncertainty_type = "segments")
     test_predictions.plot_mountain({"Reported LR": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"]})
 
