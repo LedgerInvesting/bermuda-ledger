@@ -1007,7 +1007,7 @@ def _plot_mountain(
             order=alt.value(1),
         )
         ultimates = ultimate_base.mark_line().encode(
-            color=ultimate_color.legend(title="Ultimate")
+            color=ultimate_color.legend(title="Ultimate Lag")
         )
         ultimates += ultimate_base.mark_point(filled=True).encode(
             color=ultimate_color,
