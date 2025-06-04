@@ -15,4 +15,6 @@ def test_program_earned_premium():
     )
     written, earned = pattern
     np.testing.assert_array_equal(written, np.array([0, 600, 0, 0, 0, 0, 0, 0]))
-    np.testing.assert_array_equal(earned, np.array([0, 50, 100, 100, 100, 100, 100, 50]))
+    np.testing.assert_array_equal(
+        earned, np.array([0, 50, 100, 100, 100, 100, 100, 50])
+    )
