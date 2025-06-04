@@ -222,9 +222,21 @@ def wide_data_frame_to_triangle(
     else:
         if "risk_basis" not in df.columns:
             df = df.assign(risk_basis=[cell.risk_basis for cell in cell_metadata])
+        if "per_occurrence_limit" not in df.columns:
+            df = df.assign(
+                per_occurrence_limit=[
+                    cell.per_occurrence_limit for cell in cell_metadata
+                ]
+            )
         cells = []
         for idx, group_df in df.groupby(
-            ["period_start", "period_end", "evaluation_date", "risk_basis"]
+            [
+                "period_start",
+                "period_end",
+                "evaluation_date",
+                "risk_basis",
+                "per_occurrence_limit",
+            ]
             + detail_cols
             + loss_detail_cols,
             dropna=False,
@@ -380,8 +392,21 @@ def long_data_frame_to_triangle(
     else:
         if "risk_basis" not in df.columns:
             df = df.assign(risk_basis=[cell.risk_basis for cell in cell_metadata])
+        if "per_occurrence_limit" not in df.columns:
+            df = df.assign(
+                per_occurrence_limit=[
+                    cell.per_occurrence_limit for cell in cell_metadata
+                ]
+            )
         for idx, group_df in df.groupby(
-            ["period_start", "period_end", "evaluation_date", "field", "risk_basis"]
+            [
+                "period_start",
+                "period_end",
+                "evaluation_date",
+                "field",
+                "risk_basis",
+                "per_occurrence_limit",
+            ]
             + detail_cols
             + loss_detail_cols,
             dropna=False,
