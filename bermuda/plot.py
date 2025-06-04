@@ -874,6 +874,7 @@ def plot_mountain(
     n_metrics = len(metric_dict)
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
+    legend_direction = "horizontal" if highlight_ultimates else "vertical"
     fig = (
         _build_metric_slice_charts(
             triangle,
@@ -890,7 +891,7 @@ def plot_mountain(
             ncols=max_cols,
         )
         .configure_axis(**_compute_font_sizes(max_cols))
-        .configure_legend(**_compute_font_sizes(max_cols))
+        .configure_legend(**_compute_font_sizes(max_cols), direction=legend_direction)
     )
     return fig.interactive()
 
@@ -996,39 +997,43 @@ def _plot_mountain(
         errors = alt.LayerChart()
 
     if highlight_ultimates:
+        ultimate_color = alt.Color("dev_lag:Q").scale(scheme="greys")
         ultimate_base = alt.Chart(ultimate_data).encode(
             x=alt.X(
                 "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
             ).title("Period Start"),
             y=alt.X("metric:Q").title(name),
             tooltip=tooltip,
+            order=alt.value(1),
         )
         ultimates = ultimate_base.mark_line().encode(
-            color=alt.ColorValue("gray"),
+            color=ultimate_color.legend(title="Ultimate")
         )
         ultimates += ultimate_base.mark_point(filled=True).encode(
-            color=alt.ColorValue("gray"),
+            color=ultimate_color,
         )
 
         if uncertainty and uncertainty_type == "ribbon":
             ultimates += ultimate_base.mark_area().encode(
                 y=alt.Y("metric_lower_ci:Q"),
                 y2=alt.Y2("metric_upper_ci:Q"),
-                color=alt.ColorValue("gray"),
+                color=ultimate_color,
                 opacity=ribbon_conditional,
             )
         if uncertainty and uncertainty_type == "segments":
             ultimates += ultimate_base.mark_errorbar(thickness=5).encode(
                 y=alt.Y("metric_lower_ci:Q").axis(title=name),
                 y2=alt.Y2("metric_upper_ci:Q"),
-                color=alt.ColorValue("gray"),
+                color=ultimate_color,
                 opacity=opacity_conditional,
             )
     else:
         ultimates = alt.LayerChart()
 
     return alt.layer(
-        lines, points.add_params(selector), errors, ultimates
+        lines + errors,
+        points.add_params(selector),
+        ultimates,
     ).resolve_scale(color="independent")
 
 
