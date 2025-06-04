@@ -943,7 +943,7 @@ def _plot_mountain(
     color = (
         alt.Color("dev_lag:Q")
         .scale(range=MANAGUA_VALS)
-        .legend(title="Development Lag (months)")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
