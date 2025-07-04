@@ -31,15 +31,24 @@ MetricFuncDict = dict[str, MetricFunc]
 
 COMMON_METRIC_DICT: MetricFuncDict = {
     "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"],
-    "Reported Loss Ratio": lambda cell: 100 * cell["reported_loss"] / cell["earned_premium"],
-    "Incurred Loss Ratio": lambda cell: 100 * cell["incurred_loss"] / cell["earned_premium"],
+    "Reported Loss Ratio": lambda cell: 100
+    * cell["reported_loss"]
+    / cell["earned_premium"],
+    "Incurred Loss Ratio": lambda cell: 100
+    * cell["incurred_loss"]
+    / cell["earned_premium"],
     "Paid Loss": lambda cell: cell["paid_loss"] / 1e6,
     "Reported Loss": lambda cell: cell["reported_loss"] / 1e6,
     "Incurred Loss": lambda cell: cell["incurred_loss"] / 1e6,
     "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
-    "Reported ATA": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"],
-    "Paid Incremental ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"] - 1,
-    "Reported Incremental ATA": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"] - 1,
+    "Reported ATA": lambda cell, prev_cell: cell["reported_loss"]
+    / prev_cell["reported_loss"],
+    "Paid Incremental ATA": lambda cell, prev_cell: cell["paid_loss"]
+    / prev_cell["paid_loss"]
+    - 1,
+    "Reported Incremental ATA": lambda cell, prev_cell: cell["reported_loss"]
+    / prev_cell["reported_loss"]
+    - 1,
 }
 
 MetricFuncSpec = MetricFuncDict | str | list[str]
@@ -456,11 +465,9 @@ def _plot_heatmap(
         fontSize=BASE_AXIS_TITLE_FONT_SIZE
         * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
         font="sans-serif",
-    ).encode(
-        text=alt.Text("metric:Q", format=",.1f")
-    )
+    ).encode(text=alt.Text("metric:Q", format=",.1f"))
 
-    return (heatmap + text)
+    return heatmap + text
 
 
 def plot_atas(
@@ -520,9 +527,7 @@ def _plot_atas(
     ]
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:Q")
-        .title("Dev Lag (months)")
-        .scale(padding=10),
+        x=alt.X("dev_lag:Q").title("Dev Lag (months)").scale(padding=10),
         y=alt.X("metric:Q").title(name).scale(zero=False, padding=10),
         tooltip=tooltip,
     )
@@ -592,7 +597,6 @@ def _plot_growth_curve(
     n_lines: int = 100,
     seed: int | None = None,
 ) -> alt.Chart:
-
     if uncertainty_type == "spaghetti":
         triangle_thinned = triangle.thin(num_samples=n_lines)
         spaghetti_data = alt.Data(
@@ -602,8 +606,14 @@ def _plot_growth_curve(
                     "metric_sample": value,
                     "iteration": i,
                 }
-                for cell, prev_cell in zip(triangle_thinned, [None, *triangle_thinned[:-1]])
-                for i, value in enumerate(_scalar_or_array_to_iter(_safe_apply_metric(cell, prev_cell, metric, "")))
+                for cell, prev_cell in zip(
+                    triangle_thinned, [None, *triangle_thinned[:-1]]
+                )
+                for i, value in enumerate(
+                    _scalar_or_array_to_iter(
+                        _safe_apply_metric(cell, prev_cell, metric, "")
+                    )
+                )
             ]
         )
 
@@ -637,8 +647,9 @@ def _plot_growth_curve(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0))
-        .title("Dev Lag (months)"),
+        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0)).title(
+            "Dev Lag (months)"
+        ),
         y=alt.X("metric:Q").title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -649,9 +660,7 @@ def _plot_growth_curve(
         ],
     )
 
-    lines = base.mark_line(opacity=0.2).encode(
-        color=color_conditional_no_legend
-    )
+    lines = base.mark_line(opacity=0.2).encode(color=color_conditional_no_legend)
 
     points = base.mark_point(stroke=None, filled=True).encode(
         color=color_conditional_no_legend,
@@ -690,19 +699,23 @@ def _plot_growth_curve(
             opacity=opacity_conditional,
         )
     elif uncertainty and uncertainty_type == "spaghetti":
-        errors = alt.Chart(spaghetti_data).mark_line(opacity=0.2).encode(
-            x=alt.X("dev_lag:Q"),
-            y=alt.X("metric_sample:Q"),
-            detail="iteration:N",
-            color=color_conditional_no_legend,
+        errors = (
+            alt.Chart(spaghetti_data)
+            .mark_line(opacity=0.2)
+            .encode(
+                x=alt.X("dev_lag:Q"),
+                y=alt.X("metric_sample:Q"),
+                detail="iteration:N",
+                color=color_conditional_no_legend,
+            )
         )
     else:
         errors = alt.LayerChart()
 
     if len(triangle.periods) == 1:
-        scale_color="shared"
+        scale_color = "shared"
     else:
-        scale_color="independent"
+        scale_color = "independent"
 
     return (
         alt.layer(errors + lines + points, ultimates.add_params(selector))
@@ -771,9 +784,7 @@ def _plot_sunset(
     )
 
     color = (
-        alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
-        .legend(title="Development Lag")
+        alt.Color("dev_lag:Q").scale(range=MANAGUA_VALS).legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -800,9 +811,7 @@ def _plot_sunset(
         ],
     )
 
-    points = base.mark_point(
-        stroke=None, size=30 / mark_scaler, filled=True
-    ).encode(
+    points = base.mark_point(stroke=None, size=30 / mark_scaler, filled=True).encode(
         color=color_conditional,
         opacity=opacity_conditional,
         strokeOpacity=opacity_conditional,
@@ -1075,9 +1084,9 @@ def _plot_ballistic(
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(
-        filled=True, size=100 / mark_scaler, stroke=None
-    ).encode(color=color_conditional, opacity=opacity_conditional)
+    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke=None).encode(
+        color=color_conditional, opacity=opacity_conditional
+    )
     ultimates = (
         base.mark_point(size=200 / mark_scaler, filled=True, stroke=None)
         .encode(color=color_conditional, opacity=opacity_conditional)
@@ -1201,9 +1210,7 @@ def _plot_broom(
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(
-        filled=True, size=100 / mark_scaler, stroke=None
-    ).encode(
+    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke=None).encode(
         color=color_conditional,
         opacity=opacity_conditional,
         strokeOpacity=opacity_conditional,
@@ -1330,9 +1337,9 @@ def _plot_drip(
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(
-        filled=True, size=100 / mark_scaler, stroke=None
-    ).encode(color=color_conditional, opacity=opacity_conditional)
+    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke=None).encode(
+        color=color_conditional, opacity=opacity_conditional
+    )
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(color=color_conditional, opacity=opacity_conditional)
@@ -1384,9 +1391,7 @@ def plot_histogram(
     ncols: int | None = None,
     facet_titles: list[str] | None = None,
 ) -> alt.Chart:
-    main_title = alt.Title(
-        "Triangle Histogram"
-    )
+    main_title = alt.Title("Triangle Histogram")
     metric_dict = _resolve_metric_spec(metric_spec)
     n_slices = len(triangle.slices)
     n_metrics = len(metric_spec)
@@ -1410,20 +1415,24 @@ def _plot_histogram(
     name: str,
     title: alt.Title,
 ) -> alt.Chart:
-
-    metric_data = alt.Data(values=[
+    metric_data = alt.Data(
+        values=[
             {
                 name: value,
                 "iteration": i,
             }
-            for cell
-            in triangle
+            for cell in triangle
             for i, value in enumerate(_scalar_or_array_to_iter(metric(cell)))
-    ])
+        ]
+    )
 
-    histogram = alt.Chart(metric_data, title=title).mark_bar().encode(
-        x=alt.X(f"{name}:Q").bin({"maxbins": 50}).title(name),
-        y=alt.Y("count()").title("Count"),
+    histogram = (
+        alt.Chart(metric_data, title=title)
+        .mark_bar()
+        .encode(
+            x=alt.X(f"{name}:Q").bin({"maxbins": 50}).title(name),
+            y=alt.Y("count()").title("Count"),
+        )
     )
 
     return histogram
@@ -1481,7 +1490,6 @@ def _core_plot_data(cell: Cell) -> dict[str, Any]:
     }
 
 
-
 def _calculate_field_summary(
     cell: Cell,
     prev_cell: Cell | None,
@@ -1489,7 +1497,6 @@ def _calculate_field_summary(
     name: str,
     probs: tuple[float, float] = (0.05, 0.95),
 ):
-
     metric = _safe_apply_metric(cell, prev_cell, func, name)
 
     if metric is None:
@@ -1533,6 +1540,7 @@ def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc, nam
             return None
     except Exception:
         return None
+
 
 def _compute_font_sizes(mark_scaler: int) -> dict[str, float | int]:
     return {
@@ -1579,7 +1587,7 @@ _MANAGUA_RAW = [
     [0.38579, 0.57766, 0.79429],
     [0.4241, 0.67996, 0.86256],
     [0.46377, 0.78936, 0.93036],
-    [0.50411, 0.90708, 0.99978]
+    [0.50411, 0.90708, 0.99978],
 ]
 
 
@@ -1599,7 +1607,10 @@ def _slice_label(slice_tri: Triangle, base_tri: Triangle):
 
     # Custom elements
     custom_elems = []
-    for label, value in {**slice_metadata.details, **slice_metadata.loss_details}.items():
+    for label, value in {
+        **slice_metadata.details,
+        **slice_metadata.loss_details,
+    }.items():
         custom_elems.append(f"{string.capwords(label)}: {value}")
 
     # Bare elements
@@ -1640,6 +1651,6 @@ def _slice_label(slice_tri: Triangle, base_tri: Triangle):
 
 
 def _scalar_or_array_to_iter(x: float | int | list | np.ndarray) -> np.ndarray:
-    if np.isscalar(x):
+    if np.isscalar(x) or x is None:
         return np.array([x])
     return x
