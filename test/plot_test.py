@@ -87,7 +87,7 @@ def test_plot_atas():
         reported_claims = lambda cell: cell["reported_loss"],
     )
     test2 = test.derive_metadata(id=2)
-    (test + test2).plot_atas(["Paid ATA", "Reported ATA"]).show()
+    (test + test2).plot_atas(["Paid ATA", "Reported ATA"])
 
 
 def test_plot_growth_curve():
