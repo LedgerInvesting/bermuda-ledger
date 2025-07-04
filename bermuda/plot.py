@@ -416,14 +416,12 @@ def _plot_heatmap(
 ) -> alt.Chart:
     metric_data = alt.Data(
         values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                    "Field": name,
-                }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-            ]
+            {
+                **_core_plot_data(cell),
+                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
+                "Field": name,
+            }
+            for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
         ]
     )
 
@@ -939,9 +937,7 @@ def _plot_mountain(
         )
 
     color = (
-        alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
-        .legend(title="Development Lag")
+        alt.Color("dev_lag:Q").scale(range=MANAGUA_VALS).legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -1580,26 +1576,15 @@ def _calculate_field_summary(
 
 
 def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc):
-    if prev_cell is None:
-        try:
-            return func(cell)
-        except Exception:
-            return None
-
     try:
         if prev_cell.period != cell.period:
             raise IndexError
         return func(cell, prev_cell)
-    except TypeError as e:
-        if "takes 1 positional argument but 2 were given" in e.args[0]:
-            try:
-                return func(cell)
-            except Exception:
-                return None
-        elif "'NoneType' object is not subscriptable" in e.args[0]:
-            return None
     except Exception:
-        return None
+        try:
+            return func(cell)
+        except Exception:
+            return None
 
 
 def _compute_font_sizes(mark_scaler: int) -> dict[str, float | int]:

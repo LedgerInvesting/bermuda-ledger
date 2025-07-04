@@ -74,12 +74,7 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    (test + test2).plot_heatmap(
-        {
-            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
-            "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
-        }
-    )
+    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"]).show()
     test.plot_heatmap(
         {
             "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
@@ -231,7 +226,7 @@ def test_plot_mountain_with_predictions():
             / cell["earned_premium"]
         }
     )
-    
+
 
 def test_plot_ballistic():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
