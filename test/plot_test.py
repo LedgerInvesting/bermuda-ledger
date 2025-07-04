@@ -44,7 +44,7 @@ def test_plot_right_edge():
         paid_loss=lambda cell: cell["paid_loss"] * 0.8
     )
     test2 = test.derive_metadata(id=2)
-    test.plot_right_edge().show()
+    test.plot_right_edge()
     (test + test2).plot_right_edge()
 
 
