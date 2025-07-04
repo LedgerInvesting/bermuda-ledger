@@ -3,6 +3,8 @@ import numpy as np
 
 from bermuda import Triangle, meyers_tri, Metadata
 
+from bermuda.plot import _safe_apply_metric
+
 
 def test_plot_data_completeness():
     test = meyers_tri.replace(
@@ -74,7 +76,7 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"]).show()
+    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"])
     test.plot_heatmap(
         {
             "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
@@ -361,3 +363,24 @@ def test_plot_histogram():
     test2 = test.derive_metadata(id=2)
     test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"])
     (test + test2).plot_histogram(["Paid Loss", "Reported Loss"])
+
+
+def test_plot_metric_data_functions():
+    assert all(
+        _safe_apply_metric(cell, None, lambda ob: ob["paid_loss"]) is not None
+        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+    )
+    assert all(
+        _safe_apply_metric(
+            cell, None, lambda ob: ob["paid_loss"] / ob["earned_premium"]
+        )
+        is not None
+        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+    )
+    assert all(
+        _safe_apply_metric(
+            cell, prev_cell, lambda cell, prev: cell["paid_loss"] / prev["paid_loss"]
+        )
+        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+        if cell.dev_lag() > 0
+    )
