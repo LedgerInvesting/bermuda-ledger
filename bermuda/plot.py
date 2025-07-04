@@ -611,7 +611,7 @@ def _plot_growth_curve(
                 )
                 for i, value in enumerate(
                     _scalar_or_array_to_iter(
-                        _safe_apply_metric(cell, prev_cell, metric, "")
+                        _safe_apply_metric(cell, prev_cell, metric)
                     )
                 )
             ]
