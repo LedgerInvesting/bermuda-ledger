@@ -502,14 +502,12 @@ def _plot_atas(
 ) -> alt.Chart:
     metric_data = alt.Data(
         values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                    "Field": name,
-                }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-            ]
+            {
+                **_core_plot_data(cell),
+                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
+                "Field": name,
+            }
+            for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
         ]
     )
 
@@ -1522,9 +1520,9 @@ def _calculate_field_summary(
 
 def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc, name: str):
     try:
-        return func(cell, prev_cell)
         if prev_cell.period != cell.period:
             raise IndexError
+        return func(cell, prev_cell)
     except TypeError as e:
         if "takes 1 positional argument but 2 were given" in e.args[0]:
             try:
