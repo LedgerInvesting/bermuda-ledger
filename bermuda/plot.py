@@ -1497,7 +1497,7 @@ def _calculate_field_summary(
     name: str,
     probs: tuple[float, float] = (0.05, 0.95),
 ):
-    metric = _safe_apply_metric(cell, prev_cell, func, name)
+    metric = _safe_apply_metric(cell, prev_cell, func)
 
     if metric is None:
         return {
@@ -1525,7 +1525,13 @@ def _calculate_field_summary(
     }
 
 
-def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc, name: str):
+def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc):
+    if prev_cell is None:
+        try:
+            return func(cell)
+        except Exception:
+            return None
+
     try:
         if prev_cell.period != cell.period:
             raise IndexError
