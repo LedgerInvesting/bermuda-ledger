@@ -215,13 +215,14 @@ def test_plot_mountain_with_predictions():
     test_predictions = test.derive_fields(
         reported_loss=lambda cell: cell["reported_loss"]
         if cell.dev_lag() < 108
-        else np.random.normal(cell["reported_loss"], 1e5, 10_000),
+        else np.random.normal(cell["reported_loss"], 2e5, 10_000),
         paid_loss=lambda cell: cell["paid_loss"]
         if cell.dev_lag() < 108
-        else np.random.normal(cell["paid_loss"], 1e5, 10_000),
+        else np.random.normal(cell["paid_loss"], 2e5, 10_000),
     )
 
-    test_predictions.plot_mountain()
+    test_predictions.plot_mountain(highlight_ultimates=True)
+    test_predictions.plot_mountain(highlight_ultimates=False)
     test_predictions.plot_mountain(uncertainty_type="segments")
     test_predictions.plot_mountain(
         {
@@ -230,7 +231,7 @@ def test_plot_mountain_with_predictions():
             / cell["earned_premium"]
         }
     )
-
+    
 
 def test_plot_ballistic():
     test = meyers_tri.derive_metadata(id=1).derive_fields(
