@@ -538,8 +538,14 @@ def _plot_atas(
         rule=alt.MarkConfig(stroke="black"),
         box=alt.MarkConfig(stroke="black"),
     )
+    errors = base.mark_errorbar(thickness=1).encode(
+        y=alt.Y("metric_lower_ci:Q").axis(title=name),
+        y2=alt.Y2("metric_upper_ci:Q"),
+        color=alt.value("black"),
+        opacity=alt.value(0.7),
+    )
 
-    return (points + boxplot).interactive()
+    return (points + errors + boxplot).interactive()
 
 
 def plot_growth_curve(
