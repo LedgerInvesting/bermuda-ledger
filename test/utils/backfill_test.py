@@ -8,3 +8,12 @@ def test_backfill():
     assert full_tri[0]["paid_loss"] == 0
     assert full_tri[0]["reported_loss"] == 0
     assert full_tri[0]["earned_premium"] > 0
+
+
+def test_extended_backfill():
+    partial_tri = tri.binary_to_triangle("test/test_data/missing_cells.trib")
+    full_tri = tri.utils.backfill(partial_tri, min_dev_lag=-2, eval_resolution=1)
+    assert full_tri[0].dev_lag() == -2
+    assert full_tri[0]["paid_loss"] == 0
+    assert full_tri[0]["reported_loss"] == 0
+    assert full_tri[0]["earned_premium"] > 0
