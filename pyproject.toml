@@ -17,6 +17,7 @@ dependencies = [
     "babel",
     "scipy",
     "toolz",
+    "mcp[cli]>=1.13.1",
 ]
 
 [tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
