@@ -9,7 +9,18 @@ from typing import Callable, Any, Literal
 from .triangle import Triangle, Cell
 from .base import metadata_diff
 
-alt.renderers.enable("browser")
+# Pyodide-compatible renderer setup
+try:
+    import platform
+    if hasattr(platform, 'platform') and 'emscripten' in platform.platform().lower():
+        alt.renderers.enable("default")  # Pyodide compatible
+    else:
+        alt.renderers.enable("browser")  # Regular Python
+except Exception:
+    try:
+        alt.renderers.enable("default")
+    except Exception:
+        pass  # Continue without renderer
 
 SLICE_TITLE_KWARGS = {
     "anchor": "middle",
@@ -71,8 +82,7 @@ def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
         return metric_spec
 
 
-@alt.theme.register("bermuda_plot_theme", enable=True)
-def bermuda_plot_theme() -> alt.theme.ThemeConfig:
+def bermuda_plot_theme():
     return {
         "autosize": {"contains": "content", "resize": True},
         "config": {
@@ -100,6 +110,25 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
         },
     }
 
+
+# Theme registration compatible with both Altair 4.x and 5.x
+def _register_bermuda_theme():
+    """Register bermuda theme with version compatibility."""
+    try:
+        theme_config = bermuda_plot_theme()
+        
+        # Try Altair 5.x API first
+        if hasattr(alt, 'themes') and hasattr(alt.themes, 'register'):
+            alt.themes.register('bermuda_plot_theme', lambda: theme_config)
+            alt.themes.enable('bermuda_plot_theme')
+        # Fall back to Altair 4.x API
+        elif hasattr(alt, 'theme') and hasattr(alt.theme, 'register'):
+            alt.theme.register('bermuda_plot_theme', enable=True)(lambda: theme_config)
+        
+    except Exception:
+        pass  # Continue if theme registration fails
+
+_register_bermuda_theme()
 
 def plot_right_edge(
     triangle: Triangle,
@@ -226,7 +255,7 @@ def _plot_right_edge(
             )
         )
     else:
-        loss_error = alt.LayerChart()
+        loss_error = alt.Chart().mark_point(size=0, opacity=0)
 
     lines = (
         alt.Chart(loss_data)
@@ -708,7 +737,7 @@ def _plot_growth_curve(
             )
         )
     else:
-        errors = alt.LayerChart()
+        errors = alt.Chart().mark_point(size=0, opacity=0)
 
     if len(triangle.periods) == 1:
         scale_color = "shared"
@@ -842,7 +871,7 @@ def _plot_sunset(
             opacity=opacity_conditional,
         )
     else:
-        errors = alt.LayerChart()
+        errors = alt.Chart().mark_point(size=0, opacity=0)
 
     return (
         alt.layer(errors, regression, points)
@@ -988,7 +1017,7 @@ def _plot_mountain(
             opacity=opacity_conditional,
         )
     else:
-        errors = alt.LayerChart()
+        errors = alt.Chart().mark_point(size=0, opacity=0)
 
     if highlight_ultimates:
         ultimate_color = alt.Color("dev_lag:Q").scale(scheme="greys")
@@ -1022,7 +1051,7 @@ def _plot_mountain(
                 opacity=opacity_conditional,
             )
     else:
-        ultimates = alt.LayerChart()
+        ultimates = alt.Chart().mark_point(size=0, opacity=0)
 
     return alt.layer(
         lines + errors,
@@ -1150,7 +1179,7 @@ def _plot_ballistic(
             color=color_conditional_no_legend,
         )
     else:
-        errors = alt.LayerChart()
+        errors = alt.Chart().mark_point(size=0, opacity=0)
 
     return (
         alt.layer(diagonal, errors + lines, (points + ultimates).add_params(selector))
@@ -1282,7 +1311,7 @@ def _plot_broom(
             color=color_conditional_no_legend,
         )
     else:
-        errors = alt.LayerChart()
+        errors = alt.Chart().mark_point(size=0, opacity=0)
 
     return alt.layer(
         errors + lines + wall, (points + ultimates).add_params(selector)
@@ -1403,7 +1432,7 @@ def _plot_drip(
             color=color_conditional_no_legend,
         )
     else:
-        errors = alt.LayerChart()
+        errors = alt.Chart().mark_point(size=0, opacity=0)
 
     return alt.layer(
         errors + lines, (points + ultimates).add_params(selector)

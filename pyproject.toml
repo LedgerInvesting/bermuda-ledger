@@ -11,7 +11,7 @@ requires-python = ">3.10"
 dynamic = ["version", "optional-dependencies"]
 dependencies = [
     "awswrangler",
-    "numpy>1.23.1,<2",
+    "numpy>=1.23.1",
     "pandas>1.4.1",
     "altair",
     "babel",
