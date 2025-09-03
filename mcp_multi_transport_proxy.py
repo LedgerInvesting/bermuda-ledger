@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import sys
 import uuid
@@ -21,6 +22,13 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from starlette.responses import StreamingResponse
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
@@ -81,17 +89,29 @@ def _now() -> float:
 
 async def _spawn_child(env: Optional[dict] = None) -> asyncio.subprocess.Process:
     if not SERVER_PATH.exists():
+        logger.error(f"Cannot find stdio MCP server at {SERVER_PATH}")
+        logger.error(f"Current working directory: {os.getcwd()}")
+        logger.error(f"Directory contents: {list(Path.cwd().iterdir())}")
         raise RuntimeError(f"Cannot find stdio MCP server at {SERVER_PATH}")
-    return await asyncio.create_subprocess_exec(
-        sys.executable,
-        str(SERVER_PATH),
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-        cwd=str(Path(__file__).parent),
-        env=env or os.environ.copy(),
-        limit=READLINE_LIMIT,
-    )
+    
+    logger.info(f"Starting MCP server from {SERVER_PATH}")
+    
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            str(SERVER_PATH),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=str(Path(__file__).parent),
+            env=env or os.environ.copy(),
+            limit=READLINE_LIMIT,
+        )
+        logger.info(f"MCP server subprocess started with PID {proc.pid}")
+        return proc
+    except Exception as e:
+        logger.error(f"Failed to spawn MCP server: {e}")
+        raise
 
 
 async def _graceful_kill(proc: asyncio.subprocess.Process):
@@ -117,6 +137,7 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
         assert proc.stdout is not None
         try:
             buffer = b""
+            error_buffer = []  # Collect potential error messages
             while True:
                 chunk = await proc.stdout.read(4096)
                 if not chunk:
@@ -128,6 +149,11 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
                     text = raw.decode("utf-8", errors="ignore").rstrip("\r")
                     if not text.strip():
                         continue
+                    
+                    # Log potential error messages
+                    if any(err in text.lower() for err in ["error", "exception", "traceback", "importerror", "modulenotfounderror"]):
+                        logger.error(f"MCP server error output: {text}")
+                        error_buffer.append(text)
                     # 1) Fan-out to SSE subscribers
                     stale: Set[asyncio.Queue] = set()
                     for q in list(queues):
@@ -224,6 +250,24 @@ def _session_headers(session_id: str) -> dict:
 # -------------------------
 @app.on_event("startup")
 async def _start():
+    # Validate MCP server is accessible on startup
+    logger.info(f"Starting MCP proxy server")
+    logger.info(f"MCP server path: {SERVER_PATH}")
+    logger.info(f"Server path exists: {SERVER_PATH.exists()}")
+    
+    if not SERVER_PATH.exists():
+        logger.critical(f"MCP server not found at {SERVER_PATH}")
+        logger.critical(f"Working directory: {os.getcwd()}")
+        logger.critical(f"Directory contents: {list(Path.cwd().iterdir())}")
+    
+    # Test spawning a child process
+    try:
+        test_proc = await _spawn_child()
+        logger.info("Test spawn successful, cleaning up test process")
+        await _graceful_kill(test_proc)
+    except Exception as e:
+        logger.error(f"Failed to spawn test MCP server: {e}")
+    
     async def reaper():
         if SESSION_IDLE_TIMEOUT_S <= 0:
             return
@@ -249,6 +293,70 @@ async def health():
     async with _sessions_lock:
         n = len(_sessions)
     return JSONResponse({"status": "ok", "sessions": n, "maxClients": MAX_CLIENTS})
+
+
+@app.get("/debug/test-mcp")
+async def test_mcp():
+    """Test endpoint to verify MCP server is responding"""
+    try:
+        # Create a temporary session
+        s = await _start_session()
+        logger.info(f"Debug: Created session {s.id}")
+        
+        # Send a simple initialize request
+        test_request = {
+            "jsonrpc": "2.0",
+            "id": "test-1",
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {
+                    "name": "debug-test",
+                    "version": "1.0.0"
+                }
+            }
+        }
+        
+        req_id = test_request["id"]
+        fut: asyncio.Future = asyncio.get_event_loop().create_future()
+        s.waiters[req_id] = fut
+        
+        # Send the request
+        request_bytes = json.dumps(test_request).encode() + b"\n"
+        s.proc.stdin.write(request_bytes)
+        await s.proc.stdin.drain()
+        logger.info("Debug: Sent initialize request to MCP server")
+        
+        # Wait for response
+        try:
+            response = await asyncio.wait_for(fut, timeout=5)
+            logger.info(f"Debug: Got response: {response}")
+            
+            # Clean up
+            s.waiters.pop(req_id, None)
+            await _end_session(s.id)
+            
+            return JSONResponse({
+                "status": "success",
+                "message": "MCP server is responding",
+                "response": json.loads(response)
+            })
+        except asyncio.TimeoutError:
+            logger.error("Debug: Timeout waiting for MCP server response")
+            s.waiters.pop(req_id, None)
+            await _end_session(s.id)
+            return JSONResponse({
+                "status": "error",
+                "message": "MCP server did not respond within 5 seconds"
+            }, status_code=500)
+            
+    except Exception as e:
+        logger.error(f"Debug: Test failed: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
 
 
 # -------------------------

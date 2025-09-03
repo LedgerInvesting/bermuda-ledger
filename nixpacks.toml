@@ -6,7 +6,8 @@ cmds = [
     "python -m venv --copies /opt/venv",
     ". /opt/venv/bin/activate",
     "pip install --upgrade pip setuptools wheel",
-  "pip install fastapi uvicorn[standard]"
+    "pip install fastapi uvicorn[standard]",
+    "pip install 'mcp[cli]>=1.13.1'"
 ]
 
 [phases.build]
@@ -16,4 +17,4 @@ cmds = [
 ]
 
 [start]
-cmd = "python mcp_multi_transport_proxy.py"
+cmd = ". /opt/venv/bin/activate && python mcp_multi_transport_proxy.py"

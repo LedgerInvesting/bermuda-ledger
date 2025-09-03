@@ -18,7 +18,10 @@
         "PORT": "8000",
         "HOST": "0.0.0.0",
         "MAX_CLIENTS": "50",
-        "IDLE_TIMEOUT": "0"
+        "SESSION_IDLE_TIMEOUT": "0",
+        "SSE_KEEPALIVE_SEC": "15",
+        "CHILD_TIMEOUT": "10",
+        "LOG_LEVEL": "INFO"
       }
     }
   }
