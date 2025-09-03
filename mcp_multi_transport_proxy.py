@@ -65,6 +65,25 @@ async def options_preflight():
     return Response(status_code=204)
 
 
+@app.get("/")
+async def root():
+    """Root endpoint that returns MCP server information"""
+    return JSONResponse({
+        "mcp_version": "2025-06-18",
+        "server_name": "bermuda-mcp",
+        "transports": [
+            {
+                "type": "sse",
+                "endpoint": "/sse"
+            },
+            {
+                "type": "http",
+                "endpoint": "/mcp"
+            }
+        ]
+    })
+
+
 @dataclass(eq=False)
 class Session:
     id: str
@@ -74,6 +93,7 @@ class Session:
     last_active: float
     # NEW: dispatcher for /mcp correlation
     waiters: Dict[Any, asyncio.Future]  # id -> Future[str]
+    initialized: bool = False  # Track if MCP server is initialized
 
     def touch(self):
         self.last_active = asyncio.get_event_loop().time()
@@ -95,6 +115,15 @@ async def _spawn_child(env: Optional[dict] = None) -> asyncio.subprocess.Process
         raise RuntimeError(f"Cannot find stdio MCP server at {SERVER_PATH}")
     
     logger.info(f"Starting MCP server from {SERVER_PATH}")
+    logger.info(f"Using Python: {sys.executable}")
+    
+    # Use the current environment which should have the virtual env activated
+    spawn_env = env or os.environ.copy()
+    # Ensure PYTHONPATH includes current directory
+    if "PYTHONPATH" in spawn_env:
+        spawn_env["PYTHONPATH"] = f"{Path(__file__).parent}:{spawn_env['PYTHONPATH']}"
+    else:
+        spawn_env["PYTHONPATH"] = str(Path(__file__).parent)
     
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -104,7 +133,7 @@ async def _spawn_child(env: Optional[dict] = None) -> asyncio.subprocess.Process
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             cwd=str(Path(__file__).parent),
-            env=env or os.environ.copy(),
+            env=spawn_env,
             limit=READLINE_LIMIT,
         )
         logger.info(f"MCP server subprocess started with PID {proc.pid}")
@@ -135,12 +164,15 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
 
     async def pump_stdout():
         assert proc.stdout is not None
+        logger.info(f"Starting stdout pump for process PID {proc.pid}")
         try:
             buffer = b""
             error_buffer = []  # Collect potential error messages
+            line_count = 0
             while True:
                 chunk = await proc.stdout.read(4096)
                 if not chunk:
+                    logger.info(f"Process {proc.pid} stdout closed")
                     break
                 buffer += chunk
                 # Split on newlines; keep trailing partial
@@ -149,6 +181,11 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
                     text = raw.decode("utf-8", errors="ignore").rstrip("\r")
                     if not text.strip():
                         continue
+                    
+                    line_count += 1
+                    # Log first few lines for debugging
+                    if line_count <= 3:
+                        logger.info(f"MCP server output line {line_count}: {text[:200]}")
                     
                     # Log potential error messages
                     if any(err in text.lower() for err in ["error", "exception", "traceback", "importerror", "modulenotfounderror"]):
@@ -168,6 +205,13 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
                     try:
                         obj = json.loads(text)
                         req_id = obj.get("id", None)
+                        
+                        # Check if this is the init response - if so, mark as initialized but don't send to client
+                        if req_id and isinstance(req_id, str) and req_id.startswith("init-"):
+                            sess.initialized = True
+                            logger.info(f"MCP server initialized for session {sess.id}")
+                            continue  # Don't send init response to clients
+                        
                         fut = (
                             sess.waiters.pop(req_id, None)
                             if req_id is not None
@@ -175,8 +219,9 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
                         )
                         if fut and not fut.done():
                             fut.set_result(text)
-                    except Exception:
+                    except Exception as e:
                         # non-JSON (logs, warnings) — ignore for /mcp, still sent to SSE
+                        logger.debug(f"Non-JSON output from MCP server: {text[:100]}")
                         pass
         finally:
             # Close SSE streams
@@ -197,22 +242,47 @@ async def _start_session(session_id: Optional[str] = None) -> Session:
         sse_queues=queues,
         last_active=_now(),
         waiters={},
+        initialized=False,
     )
+    
+    # Send an initialize request to warm up the MCP server
+    init_request = {
+        "jsonrpc": "2.0",
+        "id": f"init-{sid}",
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "proxy-warmup",
+                "version": "1.0.0"
+            }
+        }
+    }
+    
+    logger.info(f"Warming up MCP server for session {sid}")
+    proc.stdin.write((json.dumps(init_request) + "\n").encode())
+    await proc.stdin.drain()
 
     async with _sessions_lock:
         if len(_sessions) >= MAX_CLIENTS:
             await _graceful_kill(proc)
             raise HTTPException(status_code=503, detail="Too many sessions")
         _sessions[sid] = sess
+        logger.info(f"Session {sid} stored in sessions dictionary. Total sessions: {len(_sessions)}")
     return sess
 
 
 async def _get_session(session_id: str) -> Session:
+    # First check if session exists
     async with _sessions_lock:
         s = _sessions.get(session_id)
-    if not s:
-        raise HTTPException(status_code=404, detail="Unknown session")
-    return s
+        if s:
+            return s
+    
+    # Session doesn't exist, create a new one with the provided session_id
+    logger.warning(f"Session {session_id} not found, creating new session with ID {session_id}")
+    return await _start_session(session_id)
 
 
 async def _end_session(session_id: str):
@@ -220,10 +290,17 @@ async def _end_session(session_id: str):
         s = _sessions.pop(session_id, None)
     if not s:
         return
-    with suppress(Exception):
+    
+    # Cancel the output task first
+    if not s.out_task.done():
         s.out_task.cancel()
-        await s.out_task
+    
+    # Kill the process
     await _graceful_kill(s.proc)
+    
+    # Wait for the task to complete, but ignore cancellation errors
+    with suppress(asyncio.CancelledError, Exception):
+        await s.out_task
 
 
 def _extract_session_id(request: Request) -> Optional[str]:
@@ -292,71 +369,40 @@ async def _start():
 async def health():
     async with _sessions_lock:
         n = len(_sessions)
-    return JSONResponse({"status": "ok", "sessions": n, "maxClients": MAX_CLIENTS})
-
-
-@app.get("/debug/test-mcp")
-async def test_mcp():
-    """Test endpoint to verify MCP server is responding"""
+    
+    # Test if we can spawn a subprocess
+    can_spawn = False
+    spawn_error = None
     try:
-        # Create a temporary session
-        s = await _start_session()
-        logger.info(f"Debug: Created session {s.id}")
-        
-        # Send a simple initialize request
-        test_request = {
-            "jsonrpc": "2.0",
-            "id": "test-1",
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "debug-test",
-                    "version": "1.0.0"
-                }
-            }
-        }
-        
-        req_id = test_request["id"]
-        fut: asyncio.Future = asyncio.get_event_loop().create_future()
-        s.waiters[req_id] = fut
-        
-        # Send the request
-        request_bytes = json.dumps(test_request).encode() + b"\n"
-        s.proc.stdin.write(request_bytes)
-        await s.proc.stdin.drain()
-        logger.info("Debug: Sent initialize request to MCP server")
-        
-        # Wait for response
-        try:
-            response = await asyncio.wait_for(fut, timeout=5)
-            logger.info(f"Debug: Got response: {response}")
-            
-            # Clean up
-            s.waiters.pop(req_id, None)
-            await _end_session(s.id)
-            
-            return JSONResponse({
-                "status": "success",
-                "message": "MCP server is responding",
-                "response": json.loads(response)
-            })
-        except asyncio.TimeoutError:
-            logger.error("Debug: Timeout waiting for MCP server response")
-            s.waiters.pop(req_id, None)
-            await _end_session(s.id)
-            return JSONResponse({
-                "status": "error",
-                "message": "MCP server did not respond within 5 seconds"
-            }, status_code=500)
-            
+        test_proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            "print('test')",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await test_proc.communicate()
+        can_spawn = test_proc.returncode == 0
+        if not can_spawn:
+            spawn_error = stderr.decode() if stderr else "Unknown error"
     except Exception as e:
-        logger.error(f"Debug: Test failed: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        }, status_code=500)
+        spawn_error = str(e)
+    
+    return JSONResponse({
+        "status": "ok", 
+        "sessions": n, 
+        "maxClients": MAX_CLIENTS,
+        "can_spawn_subprocess": can_spawn,
+        "spawn_error": spawn_error,
+        "mcp_server_exists": SERVER_PATH.exists(),
+        "mcp_server_path": str(SERVER_PATH)
+    })
+
+
+
+
+
+
 
 
 # -------------------------
@@ -364,13 +410,23 @@ async def test_mcp():
 # -------------------------
 @app.post("/mcp")
 async def http_rpc(request: Request):
+    # Log the incoming request for debugging  
+    logger.info(f"MCP POST request from {request.client}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    
     sid = _extract_session_id(request)
     if sid:
         s = await _get_session(sid)
         ephemeral = False
     else:
-        s = await _start_session()
-        ephemeral = True
+        try:
+            s = await _start_session()
+        except Exception as e:
+            logger.error(f"Failed to start session: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to start MCP server: {str(e)}")
+        # Don't mark as ephemeral - Claude Code expects to reuse sessions even if 
+        # the first request doesn't include a session ID
+        ephemeral = False
     s.touch()
 
     body = await request.body()
@@ -386,9 +442,22 @@ async def http_rpc(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
     req_id = payload.get("id", None)
+    
+    # Handle JSON-RPC notifications (no id field, no response expected)
     if req_id is None:
-        raise HTTPException(status_code=400, detail="JSON-RPC id required")
+        # Send notification to MCP server
+        s.proc.stdin.write(body + b"\n")
+        await s.proc.stdin.drain()
+        s.touch()
+        
+        # Notifications get 204 No Content response (no body expected)
+        return Response(
+            status_code=204,
+            headers=_session_headers(s.id),
+        )
 
+    # Handle JSON-RPC requests (have id field, response expected)
+    
     # Register waiter before sending
     if req_id in s.waiters:
         raise HTTPException(status_code=409, detail="Duplicate request id")
@@ -407,6 +476,9 @@ async def http_rpc(request: Request):
             media_type="application/json",
             headers=_session_headers(s.id),
         )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout waiting for response to request {req_id}")
+        raise HTTPException(status_code=500, detail="MCP server did not respond")
     finally:
         # cleanup waiter if still present
         s.waiters.pop(req_id, None)
@@ -421,6 +493,11 @@ async def http_rpc(request: Request):
 
 @app.get("/sse")
 async def sse_stream(request: Request):
+    # Log the incoming request for debugging
+    logger.info(f"SSE GET request from {request.client}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Query params: {dict(request.query_params)}")
+    
     sid = _extract_session_id(request)
     if sid:
         s = await _get_session(sid)
@@ -434,11 +511,18 @@ async def sse_stream(request: Request):
     async def eventgen():
         try:
             # Send an initial "session" event immediately
+            logger.info(f"Starting SSE stream for session {s.id}")
             yield f"event: session\ndata: {json.dumps({'session': s.id})}\n\n"
+            
+            # Send a ready event to indicate the server is ready
+            logger.info(f"Sending ready event for session {s.id}")
+            yield f"event: ready\ndata: {json.dumps({'ready': True})}\n\n"
+            
             last_sent = _now()
             while True:
                 # Abort if client disconnected
                 if await request.is_disconnected():
+                    logger.info(f"Client disconnected from session {s.id}")
                     break
 
                 # Try to get next line from the child, with timeout to emit keep-alive
@@ -452,8 +536,10 @@ async def sse_stream(request: Request):
                     continue
 
                 if item == "__CLOSE__":
+                    logger.info(f"Closing SSE stream for session {s.id}")
                     break
 
+                logger.debug(f"Sending SSE data for session {s.id}: {item[:100]}")
                 yield f"data: {item}\n\n"
                 last_sent = _now()
         finally:
@@ -472,13 +558,18 @@ async def sse_stream(request: Request):
 
 @app.post("/sse")
 async def sse_send(request: Request):
+    logger.info(f"SSE POST request from {request.client}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    
     sid = _extract_session_id(request)
+    logger.info(f"Session ID: {sid}")
     if not sid:
         raise HTTPException(status_code=400, detail="Missing session")
     s = await _get_session(sid)
     s.touch()
 
     payload = await request.body()
+    logger.info(f"SSE POST payload: {payload[:500] if payload else 'empty'}")
     if not payload:
         raise HTTPException(status_code=400, detail="Empty body")
     if not s.proc.stdin:
