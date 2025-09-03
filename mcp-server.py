@@ -4,15 +4,17 @@ import importlib
 import inspect
 import re
 from pathlib import Path
-from typing import Iterable, TypedDict
+from typing import Iterable
 
 from mcp.server.fastmcp import FastMCP
+from typing_extensions import TypedDict
 
 ROOT = Path(__file__).parent.resolve()
 DOCS_DIR = Path(ROOT / "docs" / "source")
 # EXAMPLES_DIR = Path(os.getenv("BERMUDA_EXAMPLES_DIR", ROOT / "examples")).resolve()
 
 mcp = FastMCP("bermuda-mcp")
+
 
 # ---------- Resources ----------
 # Let Claude attach docs with: @bermuda-mcp:bermuda-doc://path/to/file.md
@@ -32,6 +34,7 @@ def read_doc(relpath: str) -> str:
 #         raise FileNotFoundError("Path outside EXAMPLES_DIR")
 #     return p.read_text(encoding="utf-8")
 #
+
 
 # ---------- Tools ----------
 class SearchHit(TypedDict):
