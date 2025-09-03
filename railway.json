@@ -1,0 +1,26 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pip install -e .",
+    "startCommand": "python mcp_multi_transport_proxy.py"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "sleepApplication": false,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "PYTHONPATH": "/app",
+        "PORT": "8000",
+        "HOST": "0.0.0.0",
+        "MAX_CLIENTS": "50",
+        "IDLE_TIMEOUT": "0"
+      }
+    }
+  }
+}
+
