@@ -123,6 +123,61 @@ def explain_symbol(qualified_name: str) -> str:
     return f"Could not import {qualified_name}"
 
 
+@mcp.tool()
+def search_docstrings(query: str, module_prefix: str = "bermuda") -> list[dict]:
+    """
+    Search for functions/classes in the bermuda package whose docstrings contain the query.
+    Returns a list of matches with qualified names and docstring excerpts.
+    """
+    import pkgutil
+    import sys
+    
+    matches = []
+    query_lower = query.lower()
+    
+    try:
+        # Import the base package
+        base_module = importlib.import_module(module_prefix)
+        
+        # Walk through all submodules
+        for importer, modname, ispkg in pkgutil.walk_packages(
+            base_module.__path__, 
+            base_module.__name__ + "."
+        ):
+            try:
+                module = importlib.import_module(modname)
+                
+                # Check all attributes in the module
+                for attr_name in dir(module):
+                    if attr_name.startswith('_'):
+                        continue
+                        
+                    try:
+                        obj = getattr(module, attr_name)
+                        doc = inspect.getdoc(obj)
+                        
+                        if doc and query_lower in doc.lower():
+                            qualified_name = f"{modname}.{attr_name}"
+                            # Get first 200 chars of docstring as excerpt
+                            excerpt = doc[:200] + "..." if len(doc) > 200 else doc
+                            
+                            matches.append({
+                                "qualified_name": qualified_name,
+                                "type": type(obj).__name__,
+                                "docstring_excerpt": excerpt
+                            })
+                    except Exception:
+                        continue
+                        
+            except Exception:
+                continue
+                
+    except Exception as e:
+        return [{"error": f"Failed to search docstrings: {str(e)}"}]
+    
+    return matches[:20]  # Limit to top 20 matches
+
+
 # ---------- Prompts (optional; become slash-commands in Claude Code) ----------
 # from mcp.server.fastmcp.prompts import base
 #
