@@ -56,6 +56,15 @@ def list_docs() -> list[str]:
     ]
 
 
+@mcp.tool()
+def list_available_resources() -> list[str]:
+    """List all available bermuda-doc:// resources"""
+    doc_files = [
+        str(p.relative_to(DOCS_DIR)) for p in _walk_files(DOCS_DIR, [".rst", ".txt"])
+    ]
+    return [f"bermuda-doc://{relpath}" for relpath in doc_files]
+
+
 # @mcp.tool()
 # def list_examples() -> list[str]:
 #     """List example names available as bermuda-example resources (without .py)."""
