@@ -90,6 +90,7 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
             },
             "mark": {"color": "black"},
             "title": {"anchor": "start", "offset": 20},
+            "axis": {"labelOverlap": True},
             "legend": {
                 "orient": "right",
                 "titleAnchor": "start",
@@ -376,6 +377,7 @@ def _plot_data_completeness(
 def plot_heatmap(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    show_values: bool = True,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -400,6 +402,7 @@ def plot_heatmap(
             height=height,
             mark_scaler=max_cols,
             ncols=max_cols,
+            show_values=show_values,
         )
         .resolve_scale(color="independent")
         .resolve_legend(color="independent")
@@ -411,6 +414,7 @@ def _plot_heatmap(
     triangle: Triangle,
     metric: MetricFunc,
     name: str,
+    show_values: bool,
     title: alt.Title,
     mark_scaler: int,
 ) -> alt.Chart:
@@ -439,7 +443,7 @@ def _plot_heatmap(
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(range=MANAGUA_VALS)).title(name)
+                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange")).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -459,13 +463,15 @@ def _plot_heatmap(
         .add_params(selection)
     )
 
-    text = base.mark_text(
-        fontSize=BASE_AXIS_TITLE_FONT_SIZE
-        * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
-        font="sans-serif",
-    ).encode(text=alt.Text("metric:Q", format=",.1f"))
+    if show_values:
+        text = base.mark_text(
+            fontSize=BASE_AXIS_TITLE_FONT_SIZE
+            * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
+            font="monospace",
+        ).encode(text=alt.Text("metric:Q", format=",.1f"))
 
-    return heatmap + text
+        return heatmap + text
+    return heatmap
 
 
 def plot_atas(
@@ -636,7 +642,7 @@ def _plot_growth_curve(
 
     color = (
         alt.Color("yearmonth(period_start):Q")
-        .scale(range=MANAGUA_VALS)
+        .scale(scheme="blueorange")
         .legend(title="Period Start")
     )
     color_none = color.legend(None)
@@ -788,7 +794,7 @@ def _plot_sunset(
     )
 
     color = (
-        alt.Color("dev_lag:Q").scale(range=MANAGUA_VALS).legend(title="Development Lag")
+        alt.Color("dev_lag:Q").scale(scheme="blueorange").legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -943,7 +949,7 @@ def _plot_mountain(
         )
 
     color = (
-        alt.Color("dev_lag:Q").scale(range=MANAGUA_VALS).legend(title="Development Lag")
+        alt.Color("dev_lag:Q").scale(scheme="blueorange").legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -1101,7 +1107,7 @@ def _plot_ballistic(
 
     color = (
         alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
+        .scale(scheme="blueorange")
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -1230,7 +1236,7 @@ def _plot_broom(
 
     color = (
         alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
+        .scale(scheme="blueorange")
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -1363,7 +1369,7 @@ def _plot_drip(
 
     color = (
         alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
+        .scale(scheme="blueorange")
         .legend(title="Development Lag (months)")
     )
     color_none = color.legend(None)
@@ -1618,39 +1624,6 @@ def _concat_charts(charts: list[alt.Chart], ncols: int, **kwargs) -> alt.Chart:
 def _determine_facet_cols(n: int):
     """This is a replication of grDevices::n2mfrow in R"""
     return int(min(n, np.ceil(n / np.sqrt(n))))
-
-
-_MANAGUA_RAW = [
-    [1, 0.81263, 0.40424],
-    [0.92706, 0.69585, 0.36536],
-    [0.85597, 0.58963, 0.32987],
-    [0.78516, 0.4928, 0.29757],
-    [0.71247, 0.40508, 0.26891],
-    [0.633, 0.32425, 0.24442],
-    [0.54243, 0.24891, 0.22689],
-    [0.44962, 0.18873, 0.22534],
-    [0.37143, 0.15932, 0.25403],
-    [0.32066, 0.17283, 0.32465],
-    [0.29878, 0.22656, 0.42904],
-    [0.3009, 0.30548, 0.54191],
-    [0.32092, 0.39385, 0.64188],
-    [0.35064, 0.48323, 0.72305],
-    [0.38579, 0.57766, 0.79429],
-    [0.4241, 0.67996, 0.86256],
-    [0.46377, 0.78936, 0.93036],
-    [0.50411, 0.90708, 0.99978],
-]
-
-
-def _float_to_rgb(color_float: tuple[float, float, float]) -> str:
-    rf, gf, bf = color_float
-    r = round(rf * 255)
-    g = round(gf * 255)
-    b = round(bf * 255)
-    return f"#{r:02x}{g:02x}{b:02x}"
-
-
-MANAGUA_VALS = [_float_to_rgb(val) for val in _MANAGUA_RAW]
 
 
 def _slice_label(slice_tri: Triangle, base_tri: Triangle):
