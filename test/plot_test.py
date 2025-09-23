@@ -76,7 +76,7 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"])
+    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"], show_values=False)
     test.plot_heatmap(
         {
             "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
