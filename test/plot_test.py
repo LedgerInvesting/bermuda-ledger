@@ -161,6 +161,7 @@ def test_plot_growth_curve():
             / cell["earned_premium"],
         }
     )
+    test.plot_growth_curve(["Paid Loss", "Reported Loss Ratio"])
 
 
 def test_plot_growth_curve_with_predictions():

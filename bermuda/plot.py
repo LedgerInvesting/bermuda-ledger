@@ -37,9 +37,9 @@ COMMON_METRIC_DICT: MetricFuncDict = {
     "Incurred Loss Ratio": lambda cell: 100
     * cell["incurred_loss"]
     / cell["earned_premium"],
-    "Paid Loss": lambda cell: cell["paid_loss"] / 1e6,
-    "Reported Loss": lambda cell: cell["reported_loss"] / 1e6,
-    "Incurred Loss": lambda cell: cell["incurred_loss"] / 1e6,
+    "Paid Loss": lambda cell: cell["paid_loss"],
+    "Reported Loss": lambda cell: cell["reported_loss"],
+    "Incurred Loss": lambda cell: cell["incurred_loss"],
     "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
     "Reported ATA": lambda cell, prev_cell: cell["reported_loss"]
     / prev_cell["reported_loss"],
@@ -657,10 +657,10 @@ def _plot_growth_curve(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0)).title(
+        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0), scale=alt.Scale(padding=5)).title(
             "Dev Lag (months)"
         ),
-        y=alt.X("metric:Q").title(name),
+        y=alt.Y("metric:Q", axis=alt.Axis(labelExpr=alt.expr.if_(alt.datum.value > 1e5, alt.datum.value / 1e6 + 'M', alt.datum.value))).title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
@@ -970,7 +970,7 @@ def _plot_mountain(
         x=alt.X(
             "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
         ).title("Period Start"),
-        y=alt.X("metric:Q").title(name),
+        y=alt.Y("metric:Q", axis=alt.Axis(labelExpr=alt.expr.if_(alt.datum.value > 1e5, alt.datum.value / 1e6 + 'M', alt.datum.value))).title(name),
         tooltip=tooltip,
     )
 
