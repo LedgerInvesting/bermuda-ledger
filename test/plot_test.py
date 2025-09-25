@@ -94,7 +94,7 @@ def test_plot_heatmap():
         },
         ncols=3,
     )
-    (test + test2).plot_heatmap()
+    (test + test2).plot_heatmap("Paid Loss", show_values=False)
     (test + test2 + test3 + test4 + test5).plot_heatmap()
     (test + test2 + test3 + test4 + test5).plot_heatmap(
         {"Earned Premium": lambda cell: cell["earned_premium"] / 1e6}

@@ -443,7 +443,7 @@ def _plot_heatmap(
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange")).title(name)
+                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange"), legend=alt.Legend(title=name, format=".1s")).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -642,7 +642,7 @@ def _plot_growth_curve(
 
     color = (
         alt.Color("yearmonth(period_start):Q")
-        .scale(scheme="blueorange")
+        .scale(scheme="blueorange", reverse=True)
         .legend(title="Period Start")
     )
     color_none = color.legend(None)
