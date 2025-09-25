@@ -243,7 +243,7 @@ def _plot_right_edge(
             ).title("Loss Ratio %"),
             color=alt.Color("Field:N"),
         )
-    )
+    ).interactive()
 
     points = (
         alt.Chart(loss_data)
@@ -1492,7 +1492,7 @@ def _plot_histogram(
         alt.Chart(metric_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"{name}:Q").bin({"maxbins": 50}).title(name),
+            x=alt.X(f"{name}:Q", axis=alt.Axis(labelExpr=alt.expr.if_(alt.datum.value > 1e5, alt.datum.value / 1e6 + "M", alt.datum.value))).bin({"maxbins": 50}).title(name),
             y=alt.Y("count()").title("Count"),
         )
     )
