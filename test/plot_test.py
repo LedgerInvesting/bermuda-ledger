@@ -88,9 +88,9 @@ def test_plot_heatmap():
     )
     (test + test2 + test3).plot_heatmap(
         {
-            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
-            "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
-            "Earned Premium": lambda cell: cell["earned_premium"] / 1e6,
+            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"] * 100,
+            "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"] * 100,
+            "Earned Premium": lambda cell: cell["earned_premium"],
         },
         ncols=3,
     )
@@ -363,7 +363,7 @@ def test_plot_histogram():
     )
     test2 = test.derive_metadata(id=2)
     test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"])
-    (test + test2).plot_histogram(["Paid Loss", "Reported Loss"])
+    (test + test2).plot_histogram(["Paid Loss", "Reported Loss"], right_edge=True)
 
 
 def test_plot_metric_data_functions():
