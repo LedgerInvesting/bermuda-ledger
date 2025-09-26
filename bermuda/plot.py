@@ -443,7 +443,7 @@ def _plot_heatmap(
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange"), legend=alt.Legend(title=name, format=".1s")).title(name)
+                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange"), legend=alt.Legend(title=name, format=".2s")).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -468,10 +468,10 @@ def _plot_heatmap(
             fontSize=BASE_AXIS_TITLE_FONT_SIZE
             * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
             font="monospace",
-        ).encode(text=alt.Text("metric:Q", format=",.1f"))
+        ).encode(text=alt.Text("metric:Q", format=".2s"))
 
         return heatmap + text
-    return heatmap
+    return heatmap.resolve_scale(color="independent")
 
 
 def plot_atas(
@@ -660,7 +660,7 @@ def _plot_growth_curve(
         x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0), scale=alt.Scale(padding=5)).title(
             "Dev Lag (months)"
         ),
-        y=alt.Y("metric:Q", axis=alt.Axis(labelExpr=alt.expr.if_(alt.datum.value > 1e5, alt.datum.value / 1e6 + 'M', alt.datum.value))).title(name),
+        y=alt.Y("metric:Q", axis=alt.Axis(format=".2s")).title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
@@ -970,7 +970,7 @@ def _plot_mountain(
         x=alt.X(
             "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
         ).title("Period Start"),
-        y=alt.Y("metric:Q", axis=alt.Axis(labelExpr=alt.expr.if_(alt.datum.value > 1e5, alt.datum.value / 1e6 + 'M', alt.datum.value))).title(name),
+        y=alt.Y("metric:Q", axis=alt.Axis(format=".2s")).title(name),
         tooltip=tooltip,
     )
 
@@ -1448,6 +1448,7 @@ def plot_hose(
 def plot_histogram(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = "Paid Loss",
+    right_edge: bool = True,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -1463,6 +1464,7 @@ def plot_histogram(
         plot_func=_plot_histogram,
         metric_dict=metric_dict,
         title=main_title,
+        right_edge=right_edge,
         facet_titles=facet_titles,
         width=width,
         height=height,
@@ -1475,8 +1477,12 @@ def _plot_histogram(
     triangle: Triangle,
     metric: MetricFunc,
     name: str,
+    right_edge: bool,
     title: alt.Title,
 ) -> alt.Chart:
+    if right_edge:
+        triangle = triangle.right_edge
+
     metric_data = alt.Data(
         values=[
             {
@@ -1492,7 +1498,7 @@ def _plot_histogram(
         alt.Chart(metric_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"{name}:Q", axis=alt.Axis(labelExpr=alt.expr.if_(alt.datum.value > 1e5, alt.datum.value / 1e6 + "M", alt.datum.value))).bin({"maxbins": 50}).title(name),
+            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s")).bin({"maxbins": 50}).title(name),
             y=alt.Y("count()").title("Count"),
         )
     )
