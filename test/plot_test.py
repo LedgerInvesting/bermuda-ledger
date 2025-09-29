@@ -178,7 +178,7 @@ def test_plot_growth_curve_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_growth_curve(hide_samples=True).show()
+    test_predictions.plot_growth_curve(hide_samples=True)
     test_predictions.plot_growth_curve(uncertainty_type="segments")
     test_predictions.plot_growth_curve(uncertainty_type="spaghetti", n_lines=50)
     test_predictions.plot_growth_curve(
