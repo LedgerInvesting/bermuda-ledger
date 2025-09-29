@@ -65,6 +65,7 @@ def test_plot_right_edge_with_predictions():
 
     test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="ribbon")
     test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="segments")
+    test_predictions.plot_right_edge(hide_samples=True)
 
 
 def test_plot_heatmap():
@@ -177,7 +178,7 @@ def test_plot_growth_curve_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_growth_curve()
+    test_predictions.plot_growth_curve(hide_samples=True).show()
     test_predictions.plot_growth_curve(uncertainty_type="segments")
     test_predictions.plot_growth_curve(uncertainty_type="spaghetti", n_lines=50)
     test_predictions.plot_growth_curve(
