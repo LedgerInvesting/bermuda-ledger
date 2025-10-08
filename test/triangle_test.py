@@ -443,15 +443,20 @@ def test_extract():
         paid_losses == paid_losses_func == sum(cell["paid_loss"] for cell in base_tri)
     )
     assert (
-        base_tri_prem.extract("paid_loss").sum()
-        / base_tri_prem.extract("earned_premium").sum()
-    ).round(1) == 0.2
+        round(
+            base_tri_prem.extract("paid_loss").sum()
+            / base_tri_prem.extract("earned_premium").sum(),
+            1,
+        )
+        == 0.2
+    )
 
 
 def test_extract_with_samples():
     tri_samples = base_tri + samples_tri
     paid_losses = tri_samples.extract("paid_loss")
     assert paid_losses.sum().sum() == 18_800
+
 
 def test_aggregate():
     aggregated_periods = base_tri.aggregate(period_resolution=(1, "year"))

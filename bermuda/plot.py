@@ -111,9 +111,12 @@ def _remove_triangle_samples(triangle: Triangle) -> Triangle:
 
     int_cells = []
     for cell in triangle:
-        if not any(isinstance(v, np.ndarray) and v.size > 1 for v in cell.values.values()):
+        if not any(
+            isinstance(v, np.ndarray) and v.size > 1 for v in cell.values.values()
+        ):
             int_cells.append(cell)
     return Triangle(int_cells)
+
 
 def plot_right_edge(
     triangle: Triangle,
@@ -459,7 +462,11 @@ def _plot_heatmap(
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange"), legend=alt.Legend(title=name, format=".2s")).title(name)
+                alt.Color(
+                    "metric:Q",
+                    scale=alt.Scale(scheme="blueorange"),
+                    legend=alt.Legend(title=name, format=".2s"),
+                ).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -675,9 +682,11 @@ def _plot_growth_curve(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0), scale=alt.Scale(padding=5)).title(
-            "Dev Lag (months)"
-        ),
+        x=alt.X(
+            "dev_lag:Q",
+            axis=alt.Axis(grid=True, labelAngle=0),
+            scale=alt.Scale(padding=5),
+        ).title("Dev Lag (months)"),
         y=alt.Y("metric:Q", axis=alt.Axis(format=".2s")).title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -813,7 +822,9 @@ def _plot_sunset(
     )
 
     color = (
-        alt.Color("dev_lag:Q").scale(scheme="blueorange").legend(title="Development Lag")
+        alt.Color("dev_lag:Q")
+        .scale(scheme="blueorange")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -969,7 +980,9 @@ def _plot_mountain(
         )
 
     color = (
-        alt.Color("dev_lag:Q").scale(scheme="blueorange").legend(title="Development Lag")
+        alt.Color("dev_lag:Q")
+        .scale(scheme="blueorange")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -1465,7 +1478,14 @@ def plot_hose(
     facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     return plot_drip(
-        triangle, axis_metrics, hide_samples, uncertainty, width, height, ncols, facet_titles
+        triangle,
+        axis_metrics,
+        hide_samples,
+        uncertainty,
+        width,
+        height,
+        ncols,
+        facet_titles,
     ).properties(title="Triangle Hose Plot")
 
 
@@ -1523,7 +1543,9 @@ def _plot_histogram(
         alt.Chart(metric_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s")).bin({"maxbins": 50}).title(name),
+            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s"))
+            .bin({"maxbins": 50})
+            .title(name),
             y=alt.Y("count()").title("Count"),
         )
     )

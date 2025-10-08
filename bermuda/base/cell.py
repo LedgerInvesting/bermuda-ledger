@@ -145,7 +145,7 @@ class Cell(object):
                 of days, and 'timedelta' returns a datetime.timedelta object.
         """
         return calculate_dev_lag(self._period_end, self._evaluation_date, unit)
-    
+
     # === Dunder methods ========================================================================
 
     def __hash__(self):
