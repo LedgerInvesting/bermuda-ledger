@@ -656,7 +656,7 @@ class Triangle(abc.Set):
         """
         if isinstance(attribute, Callable):
             return np.array(list(map(attribute, self._cells)))
-        return np.array(list(map(lambda cell: cell.values.get(attribute), self._cells)))
+        return np.array(list(map(lambda cell: cell.values.get(attribute), self._cells)), dtype="object")
 
     def to_data_frame(self, dev_lag_unit="month"):
         """Convert a triangle set to a Pandas dataframe."""

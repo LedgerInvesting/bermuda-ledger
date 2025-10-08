@@ -26,6 +26,7 @@ short_tri = Triangle(raw_obs[:2] + [raw_obs[3]])
 premium_tri = Triangle(premium_obs)
 experience_gap_tri = Triangle(experience_gap_obs)
 ten_samples = Triangle(array_raw_obs)
+samples_tri = Triangle(array_raw_obs)
 
 two_slice_tri = base_tri + Triangle(
     [
@@ -446,6 +447,11 @@ def test_extract():
         / base_tri_prem.extract("earned_premium").sum()
     ).round(1) == 0.2
 
+
+def test_extract_with_samples():
+    tri_samples = base_tri + samples_tri
+    paid_losses = tri_samples.extract("paid_loss")
+    assert paid_losses.sum().sum() == 18_800
 
 def test_aggregate():
     aggregated_periods = base_tri.aggregate(period_resolution=(1, "year"))
