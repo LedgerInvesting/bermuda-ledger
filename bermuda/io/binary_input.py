@@ -1,5 +1,6 @@
 import datetime
 import gzip
+import io
 import math
 import struct
 import warnings
@@ -7,7 +8,9 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import awswrangler as wr
+import boto3
 import numpy as np
+from botocore.config import Config
 
 from ..base import Cell, CumulativeCell, IncrementalCell, Metadata, MetadataValue
 from ..triangle import Triangle
@@ -54,11 +57,79 @@ def binary_to_triangle(filename: str, compress: bool | None = None) -> Triangle:
 
     # Read the triangle from the appropriate kind of file
     if filename.startswith("s3:"):
-        with NamedTemporaryFile() as temp:
-            wr.s3.download(local_file=temp.name, path=filename, use_threads=True)
-            return _read_binary(temp.name, compress)
+        # Stream directly from S3
+        raw = _open_s3_stream(filename)
+        try:
+            if compress:
+                # Decompress as a stream; buffer again so .peek() is reliable downstream
+                with gzip.GzipFile(fileobj=raw, mode="rb") as gz:
+                    stream = io.BufferedReader(gz, buffer_size=64 * 1024)
+                    return _read_triangle(stream)
+            else:
+                return _read_triangle(raw)
+        finally:
+            # Make sure to close the StreamingBody/BufferedReader
+            raw.close()
     else:
         return _read_binary(filepath, compress)
+
+
+class _BodyRawIO(io.RawIOBase):
+    """Adapter so BufferedReader can wrap S3 StreamingBody."""
+
+    def __init__(self, body):
+        self.body = body
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, b) -> int:
+        # Read up to len(b) bytes from the StreamingBody
+        data = self.body.read(len(b))
+        if not data:
+            return 0
+        n = len(data)
+        b[:n] = data
+        return n
+
+    def read(self, n: int = -1) -> bytes:
+        # Optional, BufferedReader uses readinto() primarily
+        return self.body.read(None if n is None or n < 0 else n)
+
+    def close(self):
+        try:
+            self.body.close()
+        finally:
+            super().close()
+
+
+def _parse_s3_uri(uri: str) -> tuple[str, str]:
+    # supports s3://bucket/key and s3:bucket/key
+    u = uri.replace("s3://", "s3:", 1)
+    _, rest = u.split("s3:", 1)
+    bucket, key = rest.lstrip("/").split("/", 1)
+    return bucket, key
+
+
+_S3 = None
+
+
+def _open_s3_stream(s3_uri: str) -> io.BufferedReader:
+    global _S3
+    if _S3 is None:
+        _S3 = boto3.client(
+            "s3",
+            config=Config(
+                max_pool_connections=64,
+                retries={"max_attempts": 10, "mode": "standard"},
+                tcp_keepalive=True,
+            ),
+        )
+    bucket, key = _parse_s3_uri(s3_uri)
+    resp = _S3.get_object(Bucket=bucket, Key=key)
+    body = resp["Body"]  # botocore.response.StreamingBody
+    # Wrap in BufferedReader so .peek() works and small reads are efficient
+    return io.BufferedReader(_BodyRawIO(body), buffer_size=64 * 1024)
 
 
 def _read_binary(filepath, compress):
