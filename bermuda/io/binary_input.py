@@ -55,7 +55,7 @@ def binary_to_triangle(filename: str, compress: bool | None = None) -> Triangle:
     # Read the triangle from the appropriate kind of file
     if filename.startswith("s3:"):
         with NamedTemporaryFile() as temp:
-            wr.s3.download(local_file=temp.name, path=filename)
+            wr.s3.download(local_file=temp.name, path=filename, use_threads=True)
             return _read_binary(temp.name, compress)
     else:
         return _read_binary(filepath, compress)
