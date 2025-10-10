@@ -101,7 +101,7 @@ def triangle_to_binary(
     if filename.startswith("s3:"):
         with NamedTemporaryFile() as temp:
             _write_binary(triangle, temp.name, compress)
-            wr.s3.upload(local_file=temp.name, path=filename)
+            wr.s3.upload(local_file=temp.name, path=filename, use_threads=True)
     else:
         _write_binary(triangle, filepath, compress)
 
