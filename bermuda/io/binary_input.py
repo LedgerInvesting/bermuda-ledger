@@ -22,14 +22,6 @@ __all__ = [
 
 
 # See binary_output.py for more extensive comments on the design of the file format.
-_S3 = boto3.client(
-    "s3",
-    config=Config(
-        max_pool_connections=64,
-        retries={"max_attempts": 10, "mode": "standard"},
-        tcp_keepalive=True,
-    ),
-)
 
 
 def binary_to_triangle(filename: str, compress: bool | None = None) -> Triangle:
@@ -119,7 +111,20 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
     return bucket, key
 
 
+_S3 = None
+
+
 def _open_s3_stream(s3_uri: str) -> io.BufferedReader:
+    global _S3
+    if _S3 is None:
+        _S3 = boto3.client(
+            "s3",
+            config=Config(
+                max_pool_connections=64,
+                retries={"max_attempts": 10, "mode": "standard"},
+                tcp_keepalive=True,
+            ),
+        )
     bucket, key = _parse_s3_uri(s3_uri)
     resp = _S3.get_object(Bucket=bucket, Key=key)
     body = resp["Body"]  # botocore.response.StreamingBody
