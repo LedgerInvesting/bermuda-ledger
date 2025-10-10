@@ -102,8 +102,25 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
     }
 
 
+def _remove_triangle_samples(triangle: Triangle) -> Triangle:
+    """Removes cells that contain samples. The primary use-case
+    of this method is to remove future predictions from a triangle to make
+    investigating observed data in combined triangles easier."""
+    if triangle.num_samples == 1:
+        return triangle
+
+    int_cells = []
+    for cell in triangle:
+        if not any(
+            isinstance(v, np.ndarray) and v.size > 1 for v in cell.values.values()
+        ):
+            int_cells.append(cell)
+    return Triangle(int_cells)
+
+
 def plot_right_edge(
     triangle: Triangle,
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -117,7 +134,7 @@ def plot_right_edge(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_right_edge,
         title=main_title,
         facet_titles=facet_titles,
@@ -144,7 +161,7 @@ def _plot_right_edge(
             f"This triangle contains {triangle.fields}"
         )
 
-    loss_fields = [field for field in triangle.fields if "_loss" in field]
+    loss_fields = [field for field in triangle.right_edge.fields if "_loss" in field]
 
     loss_data = alt.Data(
         values=[
@@ -280,6 +297,7 @@ def _plot_right_edge(
 
 def plot_data_completeness(
     triangle: Triangle,
+    hide_samples: bool = False,
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
@@ -292,7 +310,7 @@ def plot_data_completeness(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_data_completeness,
         title=main_title,
         facet_titles=facet_titles,
@@ -377,6 +395,7 @@ def _plot_data_completeness(
 def plot_heatmap(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    hide_samples: bool = False,
     show_values: bool = True,
     width: int = 400,
     height: int = 200,
@@ -393,7 +412,7 @@ def plot_heatmap(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle=triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_heatmap,
             metric_dict=metric_dict,
             title=main_title,
@@ -443,7 +462,11 @@ def _plot_heatmap(
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(scheme="blueorange"), legend=alt.Legend(title=name, format=".2s")).title(name)
+                alt.Color(
+                    "metric:Q",
+                    scale=alt.Scale(scheme="blueorange"),
+                    legend=alt.Legend(title=name, format=".2s"),
+                ).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -477,6 +500,7 @@ def _plot_heatmap(
 def plot_atas(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid ATA"],
+    hide_samples: bool = False,
     ncols: int | None = None,
     width: int = 400,
     height: int = 200,
@@ -492,7 +516,7 @@ def plot_atas(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_atas,
             metric_dict=metric_dict,
             title=main_title,
@@ -557,6 +581,7 @@ def _plot_atas(
 def plot_growth_curve(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments", "spaghetti"] = "ribbon",
     n_lines: int = 100,
@@ -576,7 +601,7 @@ def plot_growth_curve(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_growth_curve,
             metric_dict=metric_dict,
             uncertainty=uncertainty,
@@ -657,9 +682,11 @@ def _plot_growth_curve(
     )
 
     base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0), scale=alt.Scale(padding=5)).title(
-            "Dev Lag (months)"
-        ),
+        x=alt.X(
+            "dev_lag:Q",
+            axis=alt.Axis(grid=True, labelAngle=0),
+            scale=alt.Scale(padding=5),
+        ).title("Dev Lag (months)"),
         y=alt.Y("metric:Q", axis=alt.Axis(format=".2s")).title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
@@ -737,6 +764,7 @@ def _plot_growth_curve(
 def plot_sunset(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Incremental ATA"],
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -754,7 +782,7 @@ def plot_sunset(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_sunset,
             metric_dict=metric_dict,
             uncertainty=uncertainty,
@@ -794,7 +822,9 @@ def _plot_sunset(
     )
 
     color = (
-        alt.Color("dev_lag:Q").scale(scheme="blueorange").legend(title="Development Lag")
+        alt.Color("dev_lag:Q")
+        .scale(scheme="blueorange")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -866,6 +896,7 @@ def _plot_sunset(
 def plot_mountain(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -885,7 +916,7 @@ def plot_mountain(
     legend_direction = "horizontal" if highlight_ultimates else "vertical"
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_mountain,
             metric_dict=metric_dict,
             uncertainty=uncertainty,
@@ -949,7 +980,9 @@ def _plot_mountain(
         )
 
     color = (
-        alt.Color("dev_lag:Q").scale(scheme="blueorange").legend(title="Development Lag")
+        alt.Color("dev_lag:Q")
+        .scale(scheme="blueorange")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -1053,6 +1086,7 @@ def plot_ballistic(
         * cell["reported_loss"]
         / cell["earned_premium"],
     },
+    hide_samples: bool = False,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 200,
@@ -1066,7 +1100,7 @@ def plot_ballistic(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_ballistic,
         axis_metrics=axis_metrics,
         title=main_title,
@@ -1179,6 +1213,7 @@ def plot_broom(
         * cell["paid_loss"]
         / cell["earned_premium"],
     },
+    hide_samples: bool = False,
     rule: int | None = 1,
     uncertainty: bool = True,
     width: int = 400,
@@ -1193,7 +1228,7 @@ def plot_broom(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_broom,
         axis_metrics=axis_metrics,
         title=main_title,
@@ -1311,6 +1346,7 @@ def plot_drip(
         * cell["open_claims"]
         / cell["reported_claims"],
     },
+    hide_samples: bool = False,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
@@ -1325,7 +1361,7 @@ def plot_drip(
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_drip,
             axis_metrics=axis_metrics,
             title=main_title,
@@ -1434,6 +1470,7 @@ def plot_hose(
             - prev_cell["paid_loss"] / prev_cell["earned_premium"]
         ),
     },
+    hide_samples: bool = False,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
@@ -1441,7 +1478,14 @@ def plot_hose(
     facet_titles: list[str] | None = None,
 ) -> alt.Chart:
     return plot_drip(
-        triangle, axis_metrics, uncertainty, width, height, ncols, facet_titles
+        triangle,
+        axis_metrics,
+        hide_samples,
+        uncertainty,
+        width,
+        height,
+        ncols,
+        facet_titles,
     ).properties(title="Triangle Hose Plot")
 
 
@@ -1449,6 +1493,7 @@ def plot_histogram(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = "Paid Loss",
     right_edge: bool = True,
+    hide_samples: bool = False,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -1460,7 +1505,7 @@ def plot_histogram(
     n_metrics = len(metric_spec)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_histogram,
         metric_dict=metric_dict,
         title=main_title,
@@ -1498,7 +1543,9 @@ def _plot_histogram(
         alt.Chart(metric_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s")).bin({"maxbins": 50}).title(name),
+            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s"))
+            .bin({"maxbins": 50})
+            .title(name),
             y=alt.Y("count()").title("Count"),
         )
     )

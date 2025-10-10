@@ -65,6 +65,7 @@ def test_plot_right_edge_with_predictions():
 
     test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="ribbon")
     test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="segments")
+    test_predictions.plot_right_edge(hide_samples=True)
 
 
 def test_plot_heatmap():
@@ -76,7 +77,9 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"], show_values=False)
+    (test + test2).plot_heatmap(
+        ["Paid Loss Ratio", "Reported Loss Ratio"], show_values=False
+    )
     test.plot_heatmap(
         {
             "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
@@ -89,7 +92,9 @@ def test_plot_heatmap():
     (test + test2 + test3).plot_heatmap(
         {
             "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"] * 100,
-            "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"] * 100,
+            "Reported LR": lambda cell: cell["reported_loss"]
+            / cell["earned_premium"]
+            * 100,
             "Earned Premium": lambda cell: cell["earned_premium"],
         },
         ncols=3,
@@ -177,7 +182,7 @@ def test_plot_growth_curve_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_growth_curve()
+    test_predictions.plot_growth_curve(hide_samples=True)
     test_predictions.plot_growth_curve(uncertainty_type="segments")
     test_predictions.plot_growth_curve(uncertainty_type="spaghetti", n_lines=50)
     test_predictions.plot_growth_curve(
