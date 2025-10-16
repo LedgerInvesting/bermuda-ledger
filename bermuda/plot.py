@@ -2,6 +2,9 @@ import string
 
 import altair as alt
 from babel.numbers import get_currency_symbol
+from dataclasses import dataclass
+from functools import cache
+import json
 import pandas as pd
 import numpy as np
 from typing import Callable, Any, Literal
@@ -40,6 +43,7 @@ COMMON_METRIC_DICT: MetricFuncDict = {
     "Paid Loss": lambda cell: cell["paid_loss"],
     "Reported Loss": lambda cell: cell["reported_loss"],
     "Incurred Loss": lambda cell: cell["incurred_loss"],
+    "Earned Premium": lambda cell: cell["earned_premium"],
     "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
     "Reported ATA": lambda cell, prev_cell: cell["reported_loss"]
     / prev_cell["reported_loss"],
@@ -52,6 +56,47 @@ COMMON_METRIC_DICT: MetricFuncDict = {
 }
 
 MetricFuncSpec = MetricFuncDict | str | list[str]
+
+@dataclass
+class FieldSummary(object):
+    field: str
+    mean: float | None = None
+    median: float | None = None
+    sd: float | None = None
+    min: float | None = None
+    max: float | None = None
+    q2_5: float | None = None
+    q5: float | None = None
+    q10: float | None = None
+    q20: float | None = None
+    q50: float | None = None
+    q80: float | None = None
+    q90: float | None = None
+    q95: float | None = None
+    q97_5: float | None = None
+
+
+    @staticmethod
+    def quantiles() -> list[float]:
+        return [0.25, 0.05, 0.1, 0.2, 0.5, 0.6, 0.9, 0.95, 0.975]
+
+    @classmethod
+    def from_metric(cls, name: str, metric: np.ndarray):
+        return cls(
+            name,
+            np.mean(metric),
+            np.median(metric),
+            np.std(metric),
+            np.min(metric),
+            np.max(metric),
+            *np.quantile(metric, cls.quantiles())
+        )
+
+    def dict(self):
+        return self.__dict__
+
+    def json(self):
+        return json.dumps(self.dict())
 
 
 def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
@@ -69,6 +114,22 @@ def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
         return result
     else:
         return metric_spec
+
+@cache
+def build_all_plot_data(triangle: Triangle) -> dict[str, list[dict[str, Any]]]:
+    """Convenience function for building all possible plot data."""
+    return {
+        name: [{
+            **_core_plot_data(cell),
+            "last_lag": max(
+                triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
+            ),
+            **_calculate_field_summary(cell, prev_cell, metric, name).dict(),
+        }
+        for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])]
+        for name, metric
+        in COMMON_METRIC_DICT.items()
+    }
 
 
 @alt.theme.register("bermuda_plot_theme", enable=True)
@@ -148,6 +209,7 @@ def plot_right_edge(
     return fig
 
 
+
 def _plot_right_edge(
     triangle: Triangle,
     title: alt.Title,
@@ -161,45 +223,15 @@ def _plot_right_edge(
             f"This triangle contains {triangle.fields}"
         )
 
-    loss_fields = [field for field in triangle.right_edge.fields if "_loss" in field]
-
-    loss_data = alt.Data(
-        values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    **_calculate_field_summary(
-                        cell=cell,
-                        prev_cell=None,
-                        func=lambda ob: ob[field] / ob["earned_premium"],
-                        name="loss_ratio",
-                    ),
-                    "Field": field.replace("_loss", "").title() + " LR",
-                }
-                for cell in triangle.right_edge
-                for field in loss_fields
-                if "earned_premium" in cell
-            ]
-        ]
-    )
-
-    premium_data = alt.Data(
-        values=[
-            *[
-                {
-                    "period_start": pd.to_datetime(cell.period_start),
-                    "period_end": pd.to_datetime(cell.period_end),
-                    "evaluation_date": pd.to_datetime(cell.evaluation_date),
-                    "dev_lag": cell.dev_lag(),
-                    "Earned Premium": cell["earned_premium"],
-                    "Field": "Earned Premium",
-                }
-                for cell in triangle.right_edge
-                if "earned_premium" in cell
-            ]
-        ]
-    )
-
+    data = build_all_plot_data(triangle.right_edge)
+    premium_data = alt.Data(values=data["Earned Premium"])
+    loss_data = {
+        field: alt.Data(values=field_data)
+        for field, field_data
+        in data.items()
+        if "loss ratio" in field.lower()
+    }
+    
     currency = _currency_symbol(triangle)
 
     bar = (
@@ -207,85 +239,90 @@ def _plot_right_edge(
         .mark_bar()
         .encode(
             x=alt.X("yearmonth(period_start):O"),
-            y=alt.Y("Earned Premium:Q").axis(format="$.2s"),
-            color=alt.Color("Field:N").scale(range=["lightgray"]),
+            y=alt.Y(f"mean:Q").axis(title="Earned Premium", format="$.2s"),
+            color=alt.Color("field:N").scale(range=["lightgray"]).title("Field"),
             tooltip=[
                 alt.Tooltip("period_start:T", title="Period Start"),
                 alt.Tooltip("period_end:T", title="Period End"),
                 alt.Tooltip("dev_lag:O", title="Dev Lag"),
                 alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-                alt.Tooltip("Earned Premium:Q", format=f"{currency},.0f"),
+                alt.Tooltip(f"mean:Q", title="Earned Premium", format=f"{currency},.0f"),
             ],
         )
     )
 
+    loss_error = alt.LayerChart()
     if uncertainty and uncertainty_type == "ribbon":
-        loss_error = (
-            alt.Chart(loss_data)
-            .mark_area(
-                opacity=0.5,
+        for field, field_data in loss_data.items():
+            loss_error += (
+                alt.Chart(field_data)
+                .mark_area(
+                    opacity=0.5,
+                )
+                .encode(
+                    x=alt.X("yearmonth(period_start):T"),
+                    y=alt.Y("q5:Q").axis(title="Loss Ratio %", format=".0f"),
+                    y2=alt.Y2("q95:Q"),
+                    color=alt.Color("field:N"),
+                )
             )
-            .encode(
-                x=alt.X("yearmonth(period_start):T"),
-                y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
-                y2=alt.Y2("loss_ratio_upper_ci:Q"),
-                color=alt.Color("Field:N"),
-            )
-        )
     elif uncertainty and uncertainty_type == "segments":
-        loss_error = (
-            alt.Chart(loss_data)
-            .mark_errorbar(thickness=3)
+        for field, field_data in loss_data.items():
+            loss_error += (
+                alt.Chart(field_data)
+                .mark_errorbar(thickness=3)
+                .encode(
+                    x=alt.X("yearmonth(period_start):T").title("Period Start"),
+                    y=alt.Y("q5:Q").axis(title="Loss Ratio %", format=".0f"),
+                    y2=alt.Y2("q95:Q"),
+                    color=alt.Color("field:N"),
+                )
+            )
+
+    
+    lines = alt.LayerChart()
+    points = alt.LayerChart()
+    for field, field_data in loss_data.items():
+        lines += (
+            alt.Chart(field_data)
+            .mark_line(
+                size=1,
+            )
             .encode(
-                x=alt.X("yearmonth(period_start):T").title("Period Start"),
-                y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
-                y2=alt.Y2("loss_ratio_upper_ci:Q"),
-                color=alt.Color("Field:N"),
+                x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+                    "Period Start"
+                ),
+                y=alt.Y(
+                    "mean:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format=".0f")
+                ).title("Loss Ratio %"),
+                color=alt.Color("field:N").legend(title=None),
+            )
+        ).interactive()
+
+        points += (
+            alt.Chart(field_data)
+            .mark_point(
+                size=max(20, 100 / mark_scaler),
+                filled=True,
+                opacity=1,
+            )
+            .encode(
+                x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+                    "Period Start"
+                ),
+                y=alt.Y(
+                    "mean:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format=".0f")
+                ).title("Loss Ratio %"),
+                color=alt.Color("field:N").legend(title=None),
+                tooltip=[
+                    alt.Tooltip("period_start:T", title="Period Start"),
+                    alt.Tooltip("period_end:T", title="Period End"),
+                    alt.Tooltip("dev_lag:O", title="Dev Lag"),
+                    alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
+                    alt.Tooltip("mean:Q", title=f"{field} (%)", format=".2"),
+                ],
             )
         )
-    else:
-        loss_error = alt.LayerChart()
-
-    lines = (
-        alt.Chart(loss_data)
-        .mark_line(
-            size=1,
-        )
-        .encode(
-            x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
-                "Period Start"
-            ),
-            y=alt.Y(
-                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
-            ).title("Loss Ratio %"),
-            color=alt.Color("Field:N"),
-        )
-    ).interactive()
-
-    points = (
-        alt.Chart(loss_data)
-        .mark_point(
-            size=max(20, 100 / mark_scaler),
-            filled=True,
-            opacity=1,
-        )
-        .encode(
-            x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
-                "Period Start"
-            ),
-            y=alt.Y(
-                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
-            ),
-            color=alt.Color("Field:N").legend(title=None),
-            tooltip=[
-                alt.Tooltip("period_start:T", title="Period Start"),
-                alt.Tooltip("period_end:T", title="Period End"),
-                alt.Tooltip("dev_lag:O", title="Dev Lag"),
-                alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-                alt.Tooltip("loss_ratio:Q", title="Loss Ratio (%)", format=".2%"),
-            ],
-        )
-    )
 
     fig = alt.layer(bar, loss_error + lines + points).resolve_scale(
         y="independent",
@@ -1610,34 +1647,16 @@ def _calculate_field_summary(
     prev_cell: Cell | None,
     func: MetricFunc,
     name: str,
-    probs: tuple[float, float] = (0.05, 0.95),
-):
+) -> FieldSummary:
     metric = _safe_apply_metric(cell, prev_cell, func)
 
     if metric is None:
-        return {
-            f"{name}": None,
-            f"{name}_sd": None,
-            f"{name}_lower_ci": None,
-            f"{name}_upper_ci": None,
-        }
+        return FieldSummary(name)
 
     if np.isscalar(metric) or len(metric) == 1:
-        return {
-            f"{name}": metric,
-            f"{name}_sd": 0,
-            f"{name}_lower_ci": None,
-            f"{name}_upper_ci": None,
-        }
+        return FieldSummary(name, mean=metric, sd=0)
 
-    point = np.mean(metric)
-    lower, upper = np.quantile(metric, probs)
-    return {
-        f"{name}": point,
-        f"{name}_sd": metric.std(),
-        f"{name}_lower_ci": lower,
-        f"{name}_upper_ci": upper,
-    }
+    return FieldSummary.from_metric(name, metric)
 
 
 def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc):
