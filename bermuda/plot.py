@@ -242,7 +242,6 @@ def build_plot_data(
                 cell, prev_cell, metric, name, keep_samples=keep_samples
             ).dict(remove_empties, unit_lookup.get(name, ""))
             for name, metric in (metric_dict or COMMON_METRIC_DICT).items()
-            #{**COMMON_METRIC_DICT, **(metric_dict or {})}.items()
         }
         for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
     }
