@@ -200,10 +200,26 @@ def build_plot_data(
     remove_empties: bool = True,
     flat: bool = False,
     keep_samples: bool = False,
-) -> dict[str, list[dict[str, Any]]]:
-    """Convenience function for building all possible plot data."""
-    metric_dict = metric_dict or {}
+) -> list[dict[str, Any]]:
+    """Convenience function for building plot data.
 
+    By default, this function will calculate all plot data
+    for metrics in COMMON_METRIC_DICT. If bespoke metrics
+    are needed, users can pass in a `metric_dict` of their own.
+
+    The returned object is a list of dictionaries. If `flat=False`,
+    then each dictionary is nested, with each metric having it's own
+    metric spec, e.g. [{'paid_loss_ratio': {'mean': 0.25, 'sd': 0.05}}].
+    If `flat=True`, then the dictionaries are non-nested,
+    e.g. [{'paid_loss_ratio_mean': 0.25, 'paid_loss_ratio_sd': 0.05}}].
+
+    Args:
+        triangle: The triangle to plot.
+        metric_dict: A MetricFuncDict to override the default metrics used.
+        remove_empties: Remove any cells that don't have data.
+        flat: Return a flat dictionary.
+        keep_samples: Keep field samples (e.g. distribution variates) in the summary.
+    """
     currency = _currency_symbol(triangle)
     unit_lookup = {
         field: (
@@ -218,14 +234,15 @@ def build_plot_data(
             if "claims" in field.lower()
             else ""
         )
-        for field in COMMON_METRIC_DICT | metric_dict
+        for field in (metric_dict or COMMON_METRIC_DICT)
     }
     field_summaries = {
         cell: {
             _to_snake_case(name): _calculate_field_summary(
                 cell, prev_cell, metric, name, keep_samples=keep_samples
             ).dict(remove_empties, unit_lookup.get(name, ""))
-            for name, metric in {**COMMON_METRIC_DICT, **(metric_dict or {})}.items()
+            for name, metric in (metric_dict or COMMON_METRIC_DICT).items()
+            #{**COMMON_METRIC_DICT, **(metric_dict or {})}.items()
         }
         for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
     }
@@ -349,7 +366,7 @@ def _plot_right_edge(
             f"This triangle contains {triangle.fields}"
         )
 
-    data = alt.Data(values=build_plot_data(triangle.right_edge))
+    data = alt.Data(values=build_plot_data(triangle.right_edge, COMMON_METRIC_DICT))
 
     currency = _currency_symbol(triangle)
 
@@ -358,10 +375,10 @@ def _plot_right_edge(
         .mark_bar()
         .encode(
             x=alt.X("yearmonth(period_start):O"),
-            y=alt.Y(f"Earned Premium['mean']:Q").axis(
+            y=alt.Y(f"earned_premium.mean:Q").axis(
                 title="Earned Premium", format="$.2s"
             ),
-            color=alt.Color("Earned Premium['field']:N")
+            color=alt.Color("earned_premium.field:N")
             .scale(range=["lightgray"])
             .title("Field"),
             tooltip=[
@@ -370,9 +387,8 @@ def _plot_right_edge(
                 alt.Tooltip("dev_lag:O", title="Dev Lag"),
                 alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
                 alt.Tooltip(
-                    f"Earned Premium['mean']:Q",
-                    title="Earned Premium",
-                    format=f"{currency},.0f",
+                    f"earned_premium.tooltip:N",
+                    title="Bar",
                 ),
             ],
         )
@@ -385,7 +401,7 @@ def _plot_right_edge(
                 key
                 for cell_values in data.values
                 for key in cell_values
-                if "Loss Ratio" in key
+                if "loss_ratio" in key
             ]
         )
     )
@@ -393,6 +409,7 @@ def _plot_right_edge(
     points = alt.LayerChart()
 
     for field in loss_fields:
+        snake_name = _to_snake_case(field)
         if uncertainty and uncertainty_type == "ribbon":
             loss_error += (
                 alt.Chart(data)
@@ -401,9 +418,9 @@ def _plot_right_edge(
                 )
                 .encode(
                     x=alt.X("yearmonth(period_start):T"),
-                    y=alt.Y(f"{field}.q5:Q").axis(title="Loss Ratio %", format=".0f"),
-                    y2=alt.Y2(f"{field}.q95:Q"),
-                    color=alt.Color(f"{field}.field:N"),
+                    y=alt.Y(f"{snake_name}.q5:Q").axis(title="Loss Ratio %", format=".0f"),
+                    y2=alt.Y2(f"{snake_name}.q95:Q"),
+                    color=alt.Color(f"{snake_name}.field:N"),
                 )
             )
         elif uncertainty and uncertainty_type == "segments":
@@ -412,9 +429,9 @@ def _plot_right_edge(
                 .mark_rule(thickness=3)
                 .encode(
                     x=alt.X("yearmonth(period_start):T").title("Period Start"),
-                    y=alt.Y(f"{field}.q5:Q").axis(title="Loss Ratio %", format=".0f"),
-                    y2=alt.Y2(f"{field}.q95:Q"),
-                    color=alt.Color(f"{field}.field:N"),
+                    y=alt.Y(f"{snake_name}.q5:Q").axis(title="Loss Ratio %", format=".0f"),
+                    y2=alt.Y2(f"{snake_name}.q95:Q"),
+                    color=alt.Color(f"{snake_name}.field:N"),
                 )
             )
 
@@ -428,11 +445,11 @@ def _plot_right_edge(
                     "Period Start"
                 ),
                 y=alt.Y(
-                    f"{field}.mean:Q",
+                    f"{snake_name}.mean:Q",
                     scale=alt.Scale(zero=True),
                     axis=alt.Axis(format=".0f"),
                 ).title("Loss Ratio %"),
-                color=alt.Color(f"{field}.field:N").legend(title=None),
+                color=alt.Color(f"{snake_name}.field:N").legend(title=None),
             )
         ).interactive()
 
@@ -448,7 +465,7 @@ def _plot_right_edge(
                     "Period Start"
                 ),
                 y=alt.Y(
-                    f"{field}.mean:Q",
+                    f"{snake_name}.mean:Q",
                     scale=alt.Scale(zero=True),
                     axis=alt.Axis(format=".0f"),
                 ).title("Loss Ratio %"),
@@ -458,7 +475,7 @@ def _plot_right_edge(
                     alt.Tooltip("period_end:T", title="Period End"),
                     alt.Tooltip("dev_lag:O", title="Dev Lag"),
                     alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-                    alt.Tooltip(f"{field}.mean:Q", title=f"{field} (%)", format=".2"),
+                    alt.Tooltip(f"{snake_name}.tooltip:N", title="Field"),
                 ],
             )
         )
@@ -593,6 +610,7 @@ def _plot_heatmap(
     title: alt.Title,
     mark_scaler: int,
 ) -> alt.Chart:
+    snake_name = _to_snake_case(name)
     data = alt.Data(values=build_plot_data(triangle, {name: metric}))
 
     base = alt.Chart(data, title=title).encode(
@@ -609,7 +627,7 @@ def _plot_heatmap(
             color=alt.when(selection)
             .then(
                 alt.Color(
-                    f"{name}.mean:Q",
+                    f"{snake_name}.mean:Q",
                     scale=alt.Scale(scheme="blueorange"),
                     legend=alt.Legend(title=name, format=".2s"),
                 ).title(name)
@@ -622,7 +640,7 @@ def _plot_heatmap(
                 alt.Tooltip("period_end:T", title="Period End"),
                 alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
                 alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
-                alt.Tooltip(f"{name}.tooltip:N", title="Field"),
+                alt.Tooltip(f"{snake_name}.tooltip:N", title="Field"),
             ],
         )
         .add_params(selection)
@@ -633,7 +651,7 @@ def _plot_heatmap(
             fontSize=BASE_AXIS_TITLE_FONT_SIZE
             * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
             font="monospace",
-        ).encode(text=alt.Text(f"{name}.mean:Q", format=".0f"))
+        ).encode(text=alt.Text(f"{snake_name}.mean:Q", format=".0f"))
 
         return heatmap + text
     return heatmap.resolve_scale(color="independent")
