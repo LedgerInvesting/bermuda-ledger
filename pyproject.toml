@@ -17,6 +17,7 @@ dependencies = [
     "babel",
     "scipy",
     "toolz",
+    "frozendict",
 ]
 
 [tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
