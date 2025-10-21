@@ -422,7 +422,9 @@ def _plot_right_edge(
                 )
                 .encode(
                     x=alt.X("yearmonth(period_start):T"),
-                    y=alt.Y(f"{snake_name}.q5:Q").axis(title="Loss Ratio %", format=".0f"),
+                    y=alt.Y(f"{snake_name}.q5:Q").axis(
+                        title="Loss Ratio %", format=".0f"
+                    ),
                     y2=alt.Y2(f"{snake_name}.q95:Q"),
                     color=alt.Color(f"{snake_name}.field:N"),
                 )
@@ -433,7 +435,9 @@ def _plot_right_edge(
                 .mark_rule(thickness=3)
                 .encode(
                     x=alt.X("yearmonth(period_start):T").title("Period Start"),
-                    y=alt.Y(f"{snake_name}.q5:Q").axis(title="Loss Ratio %", format=".0f"),
+                    y=alt.Y(f"{snake_name}.q5:Q").axis(
+                        title="Loss Ratio %", format=".0f"
+                    ),
                     y2=alt.Y2(f"{snake_name}.q95:Q"),
                     color=alt.Color(f"{snake_name}.field:N"),
                 )
@@ -542,7 +546,7 @@ def _plot_data_completeness(
             data,
             title=title,
         )
-        .transform_calculate(n_fields = alt.expr.length(alt.datum.fields))
+        .transform_calculate(n_fields=alt.expr.length(alt.datum.fields))
         .mark_circle(size=500 * 1 / mark_scaler, opacity=1)
         .encode(
             alt.X(
