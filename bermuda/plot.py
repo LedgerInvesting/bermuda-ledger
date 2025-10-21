@@ -79,6 +79,7 @@ class FieldSummary(object):
     q90: float | None = None
     q95: float | None = None
     q97_5: float | None = None
+    is_forecast: bool = False
     keep_samples: bool = False
 
     def __post_init__(self):
@@ -89,6 +90,9 @@ class FieldSummary(object):
                 self.metric = np.mean(self.metric)
             if self.mean is None:
                 self.mean = np.mean(self.metric)
+
+        if self.sd:
+            self.is_forecast = True
 
     def tooltip(self, unit: str = "") -> str:
         mean = f"{self.mean:,.{self.precision}f}"
@@ -133,6 +137,7 @@ class FieldSummary(object):
             "tooltip": self.tooltip(unit),
             "snake_case_field": self.snake_case_field,
             "unit": unit,
+            "is_forecast": self.is_forecast,
         }
 
     def json(self, return_empty: bool = False, unit: str = ""):
@@ -258,7 +263,7 @@ def build_plot_data(
             "last_lag": max(
                 triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
             ),
-            "n_fields": len(cell.values),
+            "fields": list(cell.values),
             "tooltip": ", ".join(
                 [
                     v["tooltip"]
@@ -537,6 +542,7 @@ def _plot_data_completeness(
             data,
             title=title,
         )
+        .transform_calculate(n_fields = alt.expr.length(alt.datum.fields))
         .mark_circle(size=500 * 1 / mark_scaler, opacity=1)
         .encode(
             alt.X(
