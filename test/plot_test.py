@@ -56,10 +56,10 @@ def test_plot_right_edge_with_predictions():
     )
     test_predictions = test.derive_fields(
         reported_loss=lambda cell: cell["reported_loss"]
-        if cell.period_start.year < 1995
+        if cell.period_start.year < 1995 or cell.dev_lag() < 36
         else np.random.normal(cell["reported_loss"], 1e5, 10_000),
         paid_loss=lambda cell: cell["paid_loss"]
-        if cell.period_start.year < 1995
+        if cell.period_start.year < 1995 or cell.dev_lag() < 36
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 

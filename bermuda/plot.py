@@ -263,6 +263,13 @@ def build_plot_data(
             "last_lag": max(
                 triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
             ),
+            "last_observed_lag": max(
+                _remove_triangle_samples(triangle)
+                .filter(lambda ob: ob.period == cell.period)
+                .dev_lags()
+                or [0]
+            )
+            or None,
             "fields": list(cell.values),
             "tooltip": ", ".join(
                 [
