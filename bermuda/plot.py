@@ -13,6 +13,7 @@ from typing import Callable, Any, Literal
 
 from .triangle import Triangle, Cell
 from .base import metadata_diff
+from .date_utils import period_resolution, eval_date_resolution
 
 alt.renderers.enable("browser")
 
@@ -271,6 +272,8 @@ def build_plot_data(
             )
             or None,
             "fields": list(cell.values),
+            "exp_resolution": period_resolution(triangle),
+            "eval_resolution": eval_date_resolution(triangle),
             "tooltip": ", ".join(
                 [
                     v["tooltip"]
