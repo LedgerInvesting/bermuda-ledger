@@ -56,10 +56,10 @@ def test_plot_right_edge_with_predictions():
     )
     test_predictions = test.derive_fields(
         reported_loss=lambda cell: cell["reported_loss"]
-        if cell.period_start.year < 1995
+        if cell.period_start.year < 1995 or cell.dev_lag() < 36
         else np.random.normal(cell["reported_loss"], 1e5, 10_000),
         paid_loss=lambda cell: cell["paid_loss"]
-        if cell.period_start.year < 1995
+        if cell.period_start.year < 1995 or cell.dev_lag() < 36
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
@@ -78,7 +78,7 @@ def test_plot_heatmap():
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
     (test + test2).plot_heatmap(
-        ["Paid Loss Ratio", "Reported Loss Ratio"], show_values=False
+        ["Paid Loss Ratio", "Reported Loss Ratio"], show_values=True
     )
     test.plot_heatmap(
         {
@@ -182,9 +182,9 @@ def test_plot_growth_curve_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
+    test_predictions.plot_growth_curve(uncertainty_type="spaghetti", n_lines=50)
     test_predictions.plot_growth_curve(hide_samples=True)
     test_predictions.plot_growth_curve(uncertainty_type="segments")
-    test_predictions.plot_growth_curve(uncertainty_type="spaghetti", n_lines=50)
     test_predictions.plot_growth_curve(
         {
             "Reported LR": lambda cell: 100
@@ -200,7 +200,7 @@ def test_plot_mountain():
         reported_claims=lambda cell: cell["reported_loss"],
     )
     test2 = test.derive_metadata(id=2)
-    test.plot_mountain()
+    test.plot_mountain(highlight_ultimates=False)
     (test + test2).plot_mountain(
         {
             "Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"],
@@ -232,7 +232,7 @@ def test_plot_mountain_with_predictions():
             "Reported LR": lambda cell: 100
             * cell["reported_loss"]
             / cell["earned_premium"]
-        }
+        },
     )
 
 
@@ -245,9 +245,12 @@ def test_plot_ballistic():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_ballistic()
+    test.plot_ballistic(show_points=False)
     (test + test2 + test3 + test4 + test5).plot_ballistic(
-        ncols=2, width=500, height=300
+        ncols=2,
+        width=500,
+        height=300,
+        show_points=False,
     )
 
 
@@ -258,7 +261,7 @@ def test_plot_ballistic_with_predictions():
         else np.random.normal(cell["reported_loss"], 1e6, 10_000),
     )
 
-    test_predictions.plot_ballistic()
+    test_predictions.plot_ballistic(show_points=False)
 
 
 def test_plot_broom():
@@ -271,6 +274,7 @@ def test_plot_broom():
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
     test.plot_broom()
+    test.plot_broom(show_points=False)
     test.plot_broom(rule=None)
     (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300)
 
@@ -288,7 +292,7 @@ def test_plot_broom_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_broom()
+    test_predictions.plot_broom(show_points=False)
 
 
 def test_plot_drip():
@@ -301,7 +305,7 @@ def test_plot_drip():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_drip()
+    test.plot_drip(show_points=False)
     (test + test2 + test3 + test4 + test5).plot_drip()
 
 
@@ -367,7 +371,7 @@ def test_plot_histogram():
         paid_loss=lambda cell: np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
     test2 = test.derive_metadata(id=2)
-    test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"])
+    test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"], right_edge=False)
     (test + test2).plot_histogram(["Paid Loss", "Reported Loss"], right_edge=True)
 
 
