@@ -28,7 +28,7 @@ def backfill(
         for field in static_fields:
             replacement_values[field] = first_cell.values[field]
         current_lag = first_cell.dev_lag()
-        while current_lag > min_dev_lag:
+        while (current_lag - eval_resolution) >= min_dev_lag:
             current_lag -= eval_resolution
             additional_cells.append(
                 first_cell.replace(
