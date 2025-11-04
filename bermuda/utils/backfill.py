@@ -19,6 +19,7 @@ def backfill(
         min_dev_lag: Minimum development lag for the backfilled cells. Can be negative,
             but must be greater than -period_resolution.
     """
+    min_allowed_lag = -triangle.period_resolution + 1
     if eval_resolution is None:
         eval_resolution = triangle.eval_date_resolution
     additional_cells = []
@@ -28,15 +29,20 @@ def backfill(
         for field in static_fields:
             replacement_values[field] = first_cell.values[field]
         current_lag = first_cell.dev_lag()
-        while (current_lag - eval_resolution) >= min_dev_lag:
+        while ((current_lag - eval_resolution) >= min_dev_lag) and (
+            current_lag - eval_resolution >= min_allowed_lag
+        ):
             current_lag -= eval_resolution
-            additional_cells.append(
-                first_cell.replace(
-                    evaluation_date=lambda cell: add_months(
-                        cell.period_end, current_lag
-                    ),
-                    values=replacement_values.copy(),
+            try:
+                additional_cells.append(
+                    first_cell.replace(
+                        evaluation_date=lambda cell: add_months(
+                            cell.period_end, current_lag
+                        ),
+                        values=replacement_values.copy(),
+                    )
                 )
-            )
+            except ValueError:
+                break
 
     return triangle + Triangle(additional_cells)
