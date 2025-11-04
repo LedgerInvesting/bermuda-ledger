@@ -33,13 +33,16 @@ def backfill(
             current_lag - eval_resolution >= min_allowed_lag
         ):
             current_lag -= eval_resolution
-            additional_cells.append(
-                first_cell.replace(
-                    evaluation_date=lambda cell: add_months(
-                        cell.period_end, current_lag
-                    ),
-                    values=replacement_values.copy(),
+            try:
+                additional_cells.append(
+                    first_cell.replace(
+                        evaluation_date=lambda cell: add_months(
+                            cell.period_end, current_lag
+                        ),
+                        values=replacement_values.copy(),
+                    )
                 )
-            )
+            except ValueError:
+                break
 
     return triangle + Triangle(additional_cells)
