@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-import altair as alt
-from babel.numbers import get_currency_symbol
+import json
+import string
 from dataclasses import dataclass
 from functools import cache, wraps
-from frozendict import frozendict
-import json
-import pandas as pd
-import numpy as np
-import string
-from typing import Callable, Any, Literal
+from typing import Any, Callable, Literal
 
-from .triangle import Triangle, Cell
+import altair as alt
+import numpy as np
+import pandas as pd
+from babel.numbers import get_currency_symbol
+from frozendict import frozendict
+
 from .base import metadata_diff
-from .date_utils import period_resolution, eval_date_resolution
+from .date_utils import eval_date_resolution, period_resolution
+from .triangle import Cell, Triangle
 
 alt.renderers.enable("browser")
 
@@ -1660,8 +1661,6 @@ def _plot_histogram(
     if right_edge:
         triangle = triangle.right_edge
 
-    snake_name = _to_snake_case(name)
-
     metric_data = alt.Data(
         values=[
             {
@@ -1672,13 +1671,12 @@ def _plot_histogram(
             for i, value in enumerate(_scalar_or_array_to_iter(metric(cell)))
         ]
     )
-    data = alt.Data(values=build_plot_data(triangle, {name: metric}))
 
     histogram = (
-        alt.Chart(data, title=title)
+        alt.Chart(metric_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"{snake_name}.mean:Q", axis=alt.Axis(format=".2s"))
+            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s"))
             .bin({"maxbins": 50})
             .title(name),
             y=alt.Y("count()").title("Count"),
