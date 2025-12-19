@@ -144,7 +144,7 @@ effort handling edge cases. Since unusual loss development data is
 rarely discussed, there is no standardized terminology for describing
 unusual triangles.
 
-We at Ledger Investing have developed a taxonomy for these unusual
+We at Korra have developed a taxonomy for these unusual
 triangles, which we have found greatly facilitates communication. We
 describe our terms bloew.
 

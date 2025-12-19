@@ -4,7 +4,7 @@ Deriving key triangle quantities
 Bermuda currently has no utility functions specifically
 for extracting quantities such as age-to-age factors or loss
 ratios. Modeling functionality is part
-of the upcoming Ledger Investing infrastructure,
+of the upcoming Korra infrastructure,
 which will include numerous advanced methods for the
 modeling of loss development patterns.
 
