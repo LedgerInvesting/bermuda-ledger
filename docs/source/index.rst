@@ -5,7 +5,7 @@ Bermuda
 
 Bermuda is a Python package for the representation, manipulation,
 and exploration of insurance loss triangles, created
-by `Ledger Investing <https://ledgerinvesting.com>`_.
+by `Korra <https://korra.com>`_.
 It offers a user-friendly interface for:
 
 * Loading and saving insurance loss triangles using a number of formats (e.g. JSON, CSV, Pandas :code:`DataFrame` objects, binary files).

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bermuda-ledger"
 description = "A module for manipulating insurance loss triangles"
-authors = [ { name = "Ledger Investing" } ]
+authors = [ { name = "Korra" } ]
 readme = "README.rst"
 requires-python = ">3.10"
 dynamic = ["version", "optional-dependencies"]
