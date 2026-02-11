@@ -261,16 +261,17 @@ metrics.
 We could have created the same plot by passing the list of ``["Paid Loss Ratio", "Reported Loss Ratio"]``
 to ``metric_spec``.
 
-The metric functions can either be a function of each cell, or a function of each cell and
-the previous cell. This option is only applied to cells within the same experience period.
+The metric functions can either be a function of each cell, or a function of each cell, 
+the previous cell (i.e. cell - 1 lag) and the next cell (cell + 1 lag). 
+This option is only applied to cells within the same experience period.
 For instance, if we wanted to plot paid and reported ATAs, we could utilize this pattern:
 
 .. altair-plot::
 
    triangle.plot_atas(
        metric_spec = {
-           "Paid ATAs": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
-           "Reported ATAs": lambda cell, prev_cell: cell["reported_loss"] / prev_cell["reported_loss"],
+           "Paid ATAs": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"],
+           "Reported ATAs": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"],
         },
        width=300,
        height=200,

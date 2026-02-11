@@ -376,21 +376,31 @@ def test_plot_histogram():
 
 
 def test_plot_metric_data_functions():
+    zipped_cells = lambda row: list(zip(row, [None, *row[:-1]], [*row[1:], None]))
     assert all(
-        _safe_apply_metric(cell, None, lambda ob: ob["paid_loss"]) is not None
-        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+        _safe_apply_metric(cell, prev_cell, next_cell, lambda ob: ob["paid_loss"]) is not None
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
     )
     assert all(
         _safe_apply_metric(
-            cell, None, lambda ob: ob["paid_loss"] / ob["earned_premium"]
+            cell, prev_cell, next_cell, lambda ob: ob["paid_loss"] / ob["earned_premium"]
         )
-        is not None
-        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
     )
-    assert all(
+    atas_prev = [
         _safe_apply_metric(
-            cell, prev_cell, lambda cell, prev: cell["paid_loss"] / prev["paid_loss"]
+            cell, prev_cell, next_cell, lambda cell, prev, _: cell["paid_loss"] / prev["paid_loss"]
         )
-        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
-        if cell.dev_lag() > 0
-    )
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
+    ]
+    atas_next = [
+        _safe_apply_metric(
+            cell, prev_cell, next_cell, lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"]
+        )
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
+    ]
+    assert np.all([i for i in atas_prev if i] == [i for i in atas_next if i])

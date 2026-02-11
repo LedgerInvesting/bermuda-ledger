@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from babel.numbers import get_currency_symbol
 from frozendict import frozendict
+import re
 
 from .base import metadata_diff
 from .date_utils import eval_date_resolution, period_resolution
@@ -49,15 +50,10 @@ COMMON_METRIC_DICT: MetricFuncDict = {
     "Incurred Loss": lambda cell: cell["incurred_loss"],
     "Earned Premium": lambda cell: cell["earned_premium"],
     "Reported Claims": lambda cell: cell["reported_claims"],
-    "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
-    "Reported ATA": lambda cell, prev_cell: cell["reported_loss"]
-    / prev_cell["reported_loss"],
-    "Paid Incremental ATA": lambda cell, prev_cell: cell["paid_loss"]
-    / prev_cell["paid_loss"]
-    - 1,
-    "Reported Incremental ATA": lambda cell, prev_cell: cell["reported_loss"]
-    / prev_cell["reported_loss"]
-    - 1,
+    "Paid ATA": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"],
+    "Reported ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"],
+    "Paid Incremental ATA": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"] - 1,
+    "Reported Incremental ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"] - 1,
 }
 
 MetricFuncSpec = MetricFuncDict | str | list[str]
@@ -198,6 +194,9 @@ def _flatten_dict(x: dict, prepend: str = "") -> dict[str, Any]:
 def _to_snake_case(x: str) -> str:
     return x.replace(" ", "_").lower()
 
+def _to_camel_case(x: str) -> str:
+    return re.sub(r'_([a-z])', lambda match: match.group(1).upper(), x)
+
 
 @freezeargs
 @cache
@@ -246,11 +245,13 @@ def build_plot_data(
     field_summaries = {
         cell: {
             _to_snake_case(name): _calculate_field_summary(
-                cell, prev_cell, metric, name, keep_samples=keep_samples
+                cell, prev_cell, next_cell, metric, name, keep_samples=keep_samples
             ).dict(remove_empties, unit_lookup.get(name, ""))
             for name, metric in (metric_dict or COMMON_METRIC_DICT).items()
         }
-        for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
+        for _, row in triangle.period_rows
+        for cell, prev_cell, next_cell 
+        in zip(row, [None, *row[:-1]], [*row[1:], None])
     }
 
     if remove_empties:
@@ -273,8 +274,8 @@ def build_plot_data(
             )
             or None,
             "fields": list(cell.values),
-            "exp_resolution": period_resolution(triangle),
-            "eval_resolution": eval_date_resolution(triangle),
+            "experience_resolution": period_resolution(triangle),
+            "evaluation_resolution": eval_date_resolution(triangle),
             "tooltip": ", ".join(
                 [
                     v["tooltip"]
@@ -1741,11 +1742,12 @@ def _core_plot_data(cell: Cell) -> dict[str, Any]:
 def _calculate_field_summary(
     cell: Cell,
     prev_cell: Cell | None,
+    next_cell: Cell | None,
     func: MetricFunc,
     name: str,
     keep_samples: bool = False,
 ) -> FieldSummary:
-    metric = _safe_apply_metric(cell, prev_cell, func)
+    metric = _safe_apply_metric(cell, prev_cell, next_cell, func)
 
     if metric is None or np.isscalar(metric) or len(metric) == 1:
         return FieldSummary(name, metric)
@@ -1753,15 +1755,13 @@ def _calculate_field_summary(
     return FieldSummary.from_metric(name, metric, keep_samples=keep_samples)
 
 
-def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc):
+def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, next_cell: Cell | None, func: MetricFunc):
     try:
-        if prev_cell.period != cell.period:
-            raise IndexError
-        return func(cell, prev_cell)
+        return func(cell, prev_cell, next_cell)
     except Exception:
         try:
             return func(cell)
-        except Exception:
+        except:
             return None
 
 
