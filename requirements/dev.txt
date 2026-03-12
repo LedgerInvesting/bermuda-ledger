@@ -56,7 +56,6 @@ nodeenv==1.9.1
 numpy==1.26.4
     # via
     #   -r requirements/dev.in
-    #   pandas
     #   scipy
 orderly-set==5.3.0
     # via deepdiff
@@ -64,10 +63,6 @@ packaging==24.2
     # via
     #   build
     #   pytest
-pandas==2.2.3
-    # via
-    #   awswrangler
-    #   bermuda-ledger
 pip==25.0.1
     # via pip-tools
 pip-tools==7.4.1
@@ -90,9 +85,6 @@ python-dateutil==2.9.0.post0
     # via
     #   botocore
     #   moto
-    #   pandas
-pytz==2025.1
-    # via pandas
 pyyaml==6.0.2
     # via
     #   pre-commit
@@ -108,8 +100,7 @@ ruff==0.9.6
 s3transfer==0.11.2
     # via boto3
 scipy==1.15.1
-    # via
-    #   -r requirements/dev.in
+    # via -r requirements/dev.in
 setuptools==75.8.0
     # via pip-tools
 six==1.17.0
@@ -118,8 +109,6 @@ soupsieve==2.6
     # via beautifulsoup4
 typing-extensions==4.12.2
     # via beautifulsoup4
-tzdata==2025.1
-    # via pandas
 urllib3==2.3.0
     # via
     #   botocore
