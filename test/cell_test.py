@@ -393,3 +393,18 @@ def test_cell_type_check_None():
     cell_None = test_cell.derive_fields(reported_loss=lambda ob: None)
 
     assert isinstance(cell_None, Cell)
+
+
+def test_cell_normalizes_numpy_array_dtypes():
+    cell = Cell(
+        period_start=datetime.date(2017, 1, 1),
+        period_end=datetime.date(2017, 12, 31),
+        evaluation_date=datetime.date(2018, 12, 31),
+        values={
+            "paid_loss": np.array([1, 2, 3], dtype=np.int32),
+            "reported_loss": np.array([1.0, 2.0, 3.0], dtype=np.float32),
+        },
+    )
+
+    assert cell["paid_loss"].dtype == np.int64
+    assert cell["reported_loss"].dtype == np.float64

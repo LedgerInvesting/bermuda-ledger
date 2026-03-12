@@ -6,7 +6,6 @@ from typing import get_args
 
 import awswrangler as wr
 import boto3
-import chainladder as cl
 import numpy as np
 import pandas as pd
 import pytest
@@ -39,6 +38,13 @@ from bermuda.io.data_frame_input import INDEX_CUM_COLUMNS, _check_index_columns
 from bermuda.io.data_frame_output import _common_field_length
 
 from .triangle_test import base_tri, incremental_tri
+
+
+def _require_chainladder():
+    return pytest.importorskip(
+        "chainladder",
+        reason="chainladder integration tests require the optional `chainladder` extra",
+    )
 
 incremental_tri_slices = incremental_tri + incremental_tri.derive_metadata(
     risk_basis="Policy"
@@ -142,6 +148,30 @@ def test_wide_csv_load():
         wide_csv_to_triangle(
             csv_path, detail_cols=["state"], loss_detail_cols=["state", "class_code"]
         )
+
+
+def test_binary_roundtrip_with_non_64_bit_numpy_arrays():
+    triangle = Triangle(
+        [
+            Cell(
+                period_start=datetime.date(2020, 1, 1),
+                period_end=datetime.date(2020, 12, 31),
+                evaluation_date=datetime.date(2021, 12, 31),
+                values={
+                    "paid_loss": np.array([100, 200], dtype=np.int32),
+                    "reported_loss": np.array([150.0, 250.0], dtype=np.float32),
+                },
+            )
+        ]
+    )
+
+    with tempfile.NamedTemporaryFile(suffix=".trib") as handle:
+        triangle_to_binary(triangle, handle.name)
+        loaded = binary_to_triangle(handle.name)
+
+    assert loaded[0]["paid_loss"].dtype == np.int64
+    assert loaded[0]["reported_loss"].dtype == np.float64
+    assert np.array_equal(loaded[0]["paid_loss"], np.array([100, 200], dtype=np.int64))
 
 
 def test_long_csv_load():
@@ -268,7 +298,7 @@ def test_missing_value_load():
     meyers_wide_df = pd.read_csv(
         "test/test_data/meyers_wide.csv", parse_dates=INDEX_CUM_COLUMNS
     )
-    meyers_wide_df.loc[0, "earned_premium"] = np.NaN
+    meyers_wide_df.loc[0, "earned_premium"] = np.nan
     meyers_tri_from_wide = wide_data_frame_to_triangle(
         meyers_wide_df, field_cols=["earned_premium", "reported_loss", "paid_loss"]
     )
@@ -551,6 +581,7 @@ def test_trib_triangle_value_io():
 
 
 def test_from_chain_ladder():
+    cl = _require_chainladder()
     chain_ladder_tri = cl.load_sample("clrd")
     bermuda_tri = chain_ladder_to_triangle(chain_ladder_tri)
     array_tri = cl.load_sample("raa")
@@ -569,12 +600,14 @@ def test_from_chain_ladder():
 
 
 def test_to_chain_ladder():
+    cl = _require_chainladder()
     raw_tri = json_to_triangle("test/test_data/slice_triangle_serde.json")
     cl_tri = triangle_to_chain_ladder(raw_tri)
     assert isinstance(cl_tri, cl.Triangle)
 
 
 def test_multiple_triangle_chain_ladder(tri_np_values):
+    cl = _require_chainladder()
     meyers_tri = json_to_triangle("test/test_data/meyers_triangle.json")
     slice_tri = json_to_triangle("test/test_data/slice_triangle_serde.json")
     incremental_tri = json_to_triangle("test/test_data/incremental_triangle.json")

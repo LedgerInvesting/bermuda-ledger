@@ -6,12 +6,12 @@ import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-import awswrangler as wr
 import numpy as np
 
 from ..base import Cell, CumulativeCell, IncrementalCell, Metadata, MetadataValue
 from ..triangle import Triangle
 from .binary import *
+from ._aws import get_awswrangler
 
 __all__ = [
     "triangle_to_binary",
@@ -101,6 +101,7 @@ def triangle_to_binary(
     if filename.startswith("s3:"):
         with NamedTemporaryFile() as temp:
             _write_binary(triangle, temp.name, compress)
+            wr = get_awswrangler()
             wr.s3.upload(local_file=temp.name, path=filename, use_threads=True)
     else:
         _write_binary(triangle, filepath, compress)
@@ -215,9 +216,11 @@ def _write_float(num: float | None, stream):
 
 def _write_array(array: np.ndarray, stream):
     # Write a byte indicating the dtype of the array
-    if array.dtype == "float64":
+    if np.issubdtype(array.dtype, np.floating):
+        array = array.astype(np.float64, copy=False)
         stream.write(FLOAT_ARRAY)
-    elif array.dtype == "int64":
+    elif np.issubdtype(array.dtype, np.integer):
+        array = array.astype(np.int64, copy=False)
         stream.write(INT_ARRAY)
     else:
         raise ValueError(f"Can't serialize a NumPy array of dtype {array.dtype}")

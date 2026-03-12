@@ -7,7 +7,6 @@ import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-import awswrangler as wr
 import boto3
 import numpy as np
 from botocore.config import Config

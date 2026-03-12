@@ -11,7 +11,7 @@ requires-python = ">3.10"
 dynamic = ["version", "optional-dependencies"]
 dependencies = [
     "awswrangler",
-    "numpy>1.23.1,<2",
+    "numpy>=1.23.1",
     "pandas>1.4.1",
     "altair",
     "babel",
@@ -23,6 +23,7 @@ dependencies = [
 [tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
 dev = ["requirements/dev.txt"]
 docs = ["requirements/docs.txt"]
+chainladder = ["requirements/chainladder.txt"]
 
 [tool.hatch.build.targets.sdist]
 include = ["bermuda/**", "bermuda/meyers.trib"]

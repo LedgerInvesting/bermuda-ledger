@@ -1,12 +1,12 @@
 from typing import Any
 
-import awswrangler as wr
 import numpy as np
 import pandas as pd
 import toolz as tlz
 
 from ..base import Cell, IncrementalCell
 from ..triangle import Triangle
+from ._aws import get_awswrangler
 
 __all__ = [
     "triangle_to_wide_csv",
@@ -28,6 +28,7 @@ def triangle_to_wide_csv(tri: Triangle[Cell], filename: str) -> None:
     df = triangle_to_wide_data_frame(tri)
     # noinspection PyTypeChecker
     if filename.startswith("s3://"):
+        wr = get_awswrangler()
         wr.s3.to_csv(df, filename, index=False)
     else:
         df.to_csv(filename, index=False)
@@ -45,6 +46,7 @@ def triangle_to_long_csv(tri: Triangle[Cell], filename: str) -> None:
     df = triangle_to_long_data_frame(tri)
     # noinspection PyTypeChecker
     if filename.startswith("s3://"):
+        wr = get_awswrangler()
         wr.s3.to_csv(df, filename, index=False)
     else:
         df.to_csv(filename, index=False)
@@ -123,7 +125,7 @@ def _cell_to_long_dict(cell: Cell, metadata_names: list[str]) -> list[dict[str, 
         {
             **base_dict,
             **metadata_dict,
-            "scenario": np.NaN if field in constant_fields else ndx + 1,
+            "scenario": np.nan if field in constant_fields else ndx + 1,
             "field": field,
             "value": float(value),
         }

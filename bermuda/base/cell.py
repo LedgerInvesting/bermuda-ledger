@@ -24,6 +24,20 @@ _constr_coordinates = namedtuple(
 CellValue = Union[float, int, np.ndarray, np.float64, np.int64, None]
 
 
+def _normalize_array_value(name: str, value: np.ndarray) -> np.ndarray:
+    if np.issubdtype(value.dtype, np.integer):
+        return value.astype(np.int64, copy=False)
+    if np.issubdtype(value.dtype, np.floating):
+        return value.astype(np.float64, copy=False)
+
+    raise ValueError(
+        f"""
+    Error: The array in {name} is not coercible to `np.int64` or `np.float64`.
+    Outputting to binary format is only compatible with 64-bit numeric types.
+    """
+    )
+
+
 class Cell(object):
     """Base class for all elements contained within `Triangle`s.
 
@@ -59,24 +73,16 @@ class Cell(object):
             # Check that all values are of the correct type (or can be coerced to the correct type)
             if not isinstance(values, dict):
                 raise TypeError("`values` must be a `dict`")
+            normalized_values = {}
             for name, val in values.items():
                 if not isinstance(val, get_args(CellValue)):
                     raise TypeError(
                         f"Field {name} has unexpected value type {val.__class__.__name__}"
                     )
                 if isinstance(val, np.ndarray):
-                    # See binary_output.py line 212
-                    if not isinstance(val.dtype, (np.int64, np.float64)):
-                        try:
-                            val = val.astype(np.float64)
-                        except ValueError as e:
-                            raise ValueError(
-                                f"""
-                            Error: The array in {name} is not of dtype `np.int64` or `np.float64`,
-                            nor is it coercible to `np.float64`. Outputting to binary format is only
-                            compatible with 64-bit numeric types.
-                            """
-                            ) from e
+                    val = _normalize_array_value(name, val)
+                normalized_values[name] = val
+            values = normalized_values
 
             # Check for date consistency
             if period_end < period_start:

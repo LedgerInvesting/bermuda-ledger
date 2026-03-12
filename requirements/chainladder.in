@@ -1,0 +1,3 @@
+chainladder
+# Current chainladder/numba stack does not support newer NumPy 2.x releases.
+numpy<2.2
