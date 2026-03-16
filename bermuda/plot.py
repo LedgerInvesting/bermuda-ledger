@@ -124,7 +124,7 @@ class FieldSummary(object):
         freq, bin_edges = np.histogram(metric, bins=n_bins, density=True)
         cumulative = np.cumsum(freq * np.diff(bin_edges))
         binned_pdf = {(left, right): f for left, right, f in zip(bin_edges[:-1], bin_edges[1:], freq)}
-        binned_cdf = {p: q for p, q in zip(bin_edges[1:] cumulative)} 
+        binned_cdf = {p: q for p, q in zip(bin_edges[1:], cumulative)} 
         
         if isinstance(metric, np.ndarray):
             # we always use the same random state instance to preserve samples
