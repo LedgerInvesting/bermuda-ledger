@@ -56,6 +56,8 @@ COMMON_METRIC_DICT: MetricFuncDict = {
     "Reported Incremental ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"] - 1,
 }
 
+SEED = 1234
+
 MetricFuncSpec = MetricFuncDict | str | list[str]
 
 
@@ -77,8 +79,12 @@ class FieldSummary(object):
     q90: float | None = None
     q95: float | None = None
     q97_5: float | None = None
+    binned_pdf: list[dict[str, float]] | None = None
+    binned_cdf: list[dict[str, float]] | None = None
+    samples: list[float] | None = None
     is_forecast: bool = False
     keep_samples: bool = False
+    seed: int = None
 
     def __post_init__(self):
         if self.metric is not None:
@@ -109,12 +115,25 @@ class FieldSummary(object):
 
     @staticmethod
     def quantiles() -> list[float]:
-        return [0.25, 0.05, 0.1, 0.2, 0.5, 0.6, 0.9, 0.95, 0.975]
+        return [0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.975]
 
     @classmethod
     def from_metric(
-        cls, name: str, metric: np.ndarray, keep_samples: bool = False
+        cls, name: str, metric: np.ndarray, keep_samples: bool = False, n_bins: int = 40, n_samples: int = 100,
     ) -> FieldSummary:
+        freq, bin_edges = np.histogram(metric, bins=n_bins, density=True)
+        cumulative = np.cumsum(freq * np.diff(bin_edges))
+        binned_pdf = {(left, right): f for left, right, f in zip(bin_edges[:-1], bin_edges[1:], freq)}
+        binned_cdf = {p: q for p, q in zip(bin_edges[1:], cumulative)} 
+        
+        if isinstance(metric, np.ndarray):
+            # we always use the same random state instance to preserve samples
+            # from the same joint posterior
+            rng = np.random.default_rng(seed=SEED)
+            samples = rng.choice(metric, size=n_samples, replace=True)
+        else:
+            samples = None
+
         return cls(
             name,
             metric,
@@ -124,7 +143,11 @@ class FieldSummary(object):
             np.min(metric),
             np.max(metric),
             *np.quantile(metric, cls.quantiles()),
+            binned_pdf=binned_pdf,
+            binned_cdf=binned_cdf,
+            samples=samples,
             keep_samples=keep_samples,
+            seed=SEED,
         )
 
     def dict(self, return_empty: bool = False, unit: str = ""):
@@ -206,6 +229,8 @@ def build_plot_data(
     remove_empties: bool = True,
     flat: bool = False,
     keep_samples: bool = False,
+    n_bins: int = 40,
+    n_samples: int = 100,
 ) -> list[dict[str, Any]]:
     """Convenience function for building plot data.
 
@@ -245,7 +270,7 @@ def build_plot_data(
     field_summaries = {
         cell: {
             _to_snake_case(name): _calculate_field_summary(
-                cell, prev_cell, next_cell, metric, name, keep_samples=keep_samples
+                cell, prev_cell, next_cell, metric, name, n_bins=n_bins, n_samples=n_samples, keep_samples=keep_samples
             ).dict(remove_empties, unit_lookup.get(name, ""))
             for name, metric in (metric_dict or COMMON_METRIC_DICT).items()
         }
@@ -1746,13 +1771,15 @@ def _calculate_field_summary(
     func: MetricFunc,
     name: str,
     keep_samples: bool = False,
+    n_bins: int = 40,
+    n_samples: int = 100,
 ) -> FieldSummary:
     metric = _safe_apply_metric(cell, prev_cell, next_cell, func)
 
     if metric is None or np.isscalar(metric) or len(metric) == 1:
-        return FieldSummary(name, metric)
+        return FieldSummary(name, metric, seed=SEED)
 
-    return FieldSummary.from_metric(name, metric, keep_samples=keep_samples)
+    return FieldSummary.from_metric(name, metric, keep_samples=keep_samples, n_bins=n_bins, n_samples=n_samples)
 
 
 def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, next_cell: Cell | None, func: MetricFunc):
