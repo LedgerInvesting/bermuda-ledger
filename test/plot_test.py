@@ -3,7 +3,7 @@ import numpy as np
 
 from bermuda import Triangle, meyers_tri, Metadata
 
-from bermuda.plot import _safe_apply_metric
+from bermuda.plot import _safe_apply_metric, build_plot_data
 
 
 def test_plot_data_completeness():
@@ -404,3 +404,14 @@ def test_plot_metric_data_functions():
         for cell, prev_cell, next_cell in zipped_cells(row)
     ]
     assert np.all([i for i in atas_prev if i] == [i for i in atas_next if i])
+
+def test_build_plot_data():
+    test_predictions = meyers_tri.derive_fields(
+        reported_loss=lambda cell: np.random.normal(cell["reported_loss"], 1e5, 10_000),
+    )
+    plot_data = build_plot_data(test_predictions.right_edge, n_bins=10, n_samples=10)
+    cell = plot_data[0]["reported_loss"]
+    assert cell["samples"].size == 10
+    assert len(cell["binned_pdf"]) == len(cell["binned_cdf"]) == 10
+
+
