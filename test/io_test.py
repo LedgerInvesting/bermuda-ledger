@@ -681,10 +681,3 @@ def test_triangle_dict_io():
     dict_tri = incremental_tri_slices.to_dict()
     loaded_tri = Triangle.from_dict(dict_tri)
     assert loaded_tri == incremental_tri_slices
-
-def test_triangle_io_flexible_endpoint():
-    url = "http://test/test-triangle.trib"
-    
-    with pytest.raises(Exception):
-        breakpoint()
-        Triangle.to_binary(url)
