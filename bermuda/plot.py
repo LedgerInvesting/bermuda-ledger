@@ -115,7 +115,7 @@ class FieldSummary(object):
 
     @staticmethod
     def quantiles() -> list[float]:
-        return [0.026, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.975]
+        return [0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.975]
 
     @classmethod
     def from_metric(
