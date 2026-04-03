@@ -164,7 +164,7 @@ class FieldSummary(object):
     def json(self, return_empty: bool = False, unit: str = ""):
         return json.dumps(
             {
-                k: "null" if v is None else v
+                "-".join(str(i) for i in k) if isinstance(k, tuple) else k: "null" if v is None else v
                 for k, v in self.dict(return_empty, unit).items()
             }
         )
