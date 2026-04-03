@@ -162,12 +162,11 @@ class FieldSummary(object):
         }
 
     def json(self, return_empty: bool = False, unit: str = ""):
-        return json.dumps(
-            {
-                "-".join(str(i) for i in k) if isinstance(k, tuple) else k: "null" if v is None else v
-                for k, v in self.dict(return_empty, unit).items()
-            }
-        )
+        json_dict = {
+            k: "null" if v is None else {str(kk) if isinstance(kk, tuple) else kk: vv for kk, vv in v.items()} if isinstance(v, dict) else list(v) if isinstance(v, np.ndarray) else v
+            for k, v in self.dict(return_empty, unit).items()
+        }
+        return json_dict
 
 
 def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
