@@ -2,7 +2,6 @@ import datetime
 from typing import Any, Union
 from warnings import warn
 
-import awswrangler as wr
 import numpy as np
 import pandas as pd
 import toolz as tlz
@@ -65,6 +64,8 @@ def wide_csv_to_triangle(
     """
     # Read column names first
     if file_or_fname.startswith("s3://"):
+        import awswrangler as wr
+
         raw_df = wr.s3.read_csv(file_or_fname, nrows=1)
     else:
         raw_df = pd.read_csv(file_or_fname, nrows=1)
@@ -73,6 +74,8 @@ def wide_csv_to_triangle(
     )
     # Read full table with matching column names
     if file_or_fname.startswith("s3://"):
+        import awswrangler as wr
+
         df = wr.s3.read_csv(file_or_fname, parse_dates=parse_dates, **kwargs)
     else:
         df = pd.read_csv(file_or_fname, parse_dates=parse_dates, **kwargs)
@@ -101,6 +104,8 @@ def long_csv_to_triangle(
     """
     # Read column names first
     if file_or_fname.startswith("s3://"):
+        import awswrangler as wr
+
         raw_df = wr.s3.read_csv(file_or_fname, nrows=1)
     else:
         raw_df = pd.read_csv(file_or_fname, nrows=1)
@@ -109,6 +114,8 @@ def long_csv_to_triangle(
     )
     # Read full table with matching column names
     if file_or_fname.startswith("s3://"):
+        import awswrangler as wr
+
         df = wr.s3.read_csv(file_or_fname, parse_dates=parse_dates, **kwargs)
     else:
         df = pd.read_csv(file_or_fname, parse_dates=parse_dates, **kwargs)
