@@ -1,13 +1,25 @@
+import subprocess
+import sys
+
 import bermuda
 
 
 def test_meyers_triangle_is_loaded_lazily():
-    assert "meyers_tri" not in vars(bermuda)
-
-    meyers_tri = bermuda.meyers_tri
-
-    assert "meyers_tri" in vars(bermuda)
-    assert len(meyers_tri) == 100
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import bermuda; "
+                "assert 'meyers_tri' not in vars(bermuda); "
+                "tri = bermuda.meyers_tri; "
+                "assert 'meyers_tri' in vars(bermuda); "
+                "assert len(tri) == 100"
+            ),
+        ],
+        check=True,
+    )
+    assert result.returncode == 0
 
 
 def test_root_exports_remain_available():

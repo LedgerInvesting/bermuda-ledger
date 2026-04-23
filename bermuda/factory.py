@@ -16,10 +16,24 @@ def _bind_method(module_name: str, attr_name: str, triangle_arg: str = "self"):
         if triangle_arg == "self":
             return func(args[0], *args[1:], **kwargs)
         if triangle_arg == "self_first_in_list":
-            self, triangles, *rest = args
+            self, *rest = args
+            triangles = kwargs.pop("triangles", None)
+            if triangles is None:
+                if not rest:
+                    raise TypeError(
+                        f"{attr_name}() missing required argument: 'triangles'"
+                    )
+                triangles, *rest = rest
             return func([self, *triangles], *rest, **kwargs)
         if triangle_arg == "self_list_only":
-            self, triangles, *rest = args
+            self, *rest = args
+            triangles = kwargs.pop("triangles", None)
+            if triangles is None:
+                if not rest:
+                    raise TypeError(
+                        f"{attr_name}() missing required argument: 'triangles'"
+                    )
+                triangles, *rest = rest
             return func([self, *triangles], *rest, **kwargs)
         raise ValueError(f"Unsupported triangle arg mode: {triangle_arg}")
 
