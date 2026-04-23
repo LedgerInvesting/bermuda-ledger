@@ -141,10 +141,9 @@ _EXPORTS = {
     "eval_date_resolution": (".date_utils", "eval_date_resolution"),
     "is_triangle_monthly": (".date_utils", "is_triangle_monthly"),
     "drop_off_diagonals": (".date_utils", "drop_off_diagonals"),
-    "meyers_tri": (".factory", "Triangle"),
 }
 
-__all__ = ["os", "local_dir", *_SUBMODULES, *_EXPORTS]
+__all__ = [*_SUBMODULES, *_EXPORTS, "meyers_tri"]
 
 
 def __getattr__(name: str) -> Any:

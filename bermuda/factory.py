@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+from functools import update_wrapper
 
 from .triangle import Triangle
 
@@ -10,57 +11,59 @@ def _module_attr(module_name: str, attr_name: str):
     return getattr(module, attr_name)
 
 
-def _bind_method(module_name: str, attr_name: str, triangle_arg: str = "self"):
+def _bind_method(module_name: str, attr_name: str, triangles_arg: bool = False):
+    resolved = None
+
+    def get_func():
+        nonlocal resolved
+        if resolved is None:
+            resolved = _module_attr(module_name, attr_name)
+            update_wrapper(method, resolved)
+        return resolved
+
     def method(*args, **kwargs):
-        func = _module_attr(module_name, attr_name)
-        if triangle_arg == "self":
+        func = get_func()
+        if not triangles_arg:
             return func(args[0], *args[1:], **kwargs)
-        if triangle_arg == "self_first_in_list":
-            self, *rest = args
-            triangles = kwargs.pop("triangles", None)
-            if triangles is None:
-                if not rest:
-                    raise TypeError(
-                        f"{attr_name}() missing required argument: 'triangles'"
-                    )
-                triangles, *rest = rest
-            return func([self, *triangles], *rest, **kwargs)
-        if triangle_arg == "self_list_only":
-            self, *rest = args
-            triangles = kwargs.pop("triangles", None)
-            if triangles is None:
-                if not rest:
-                    raise TypeError(
-                        f"{attr_name}() missing required argument: 'triangles'"
-                    )
-                triangles, *rest = rest
-            return func([self, *triangles], *rest, **kwargs)
-        raise ValueError(f"Unsupported triangle arg mode: {triangle_arg}")
+        self, *rest = args
+        triangles = kwargs.pop("triangles", None)
+        if triangles is None:
+            if not rest:
+                raise TypeError(f"{attr_name}() missing required argument: 'triangles'")
+            triangles, *rest = rest
+        return func([self, *triangles], *rest, **kwargs)
 
     method.__name__ = attr_name
+    method.__qualname__ = f"Triangle.{attr_name}"
     return method
 
 
 def _bind_staticmethod(module_name: str, attr_name: str):
+    resolved = None
+
+    def get_func():
+        nonlocal resolved
+        if resolved is None:
+            resolved = _module_attr(module_name, attr_name)
+            update_wrapper(method, resolved)
+        return resolved
+
     def method(*args, **kwargs):
-        func = _module_attr(module_name, attr_name)
+        func = get_func()
         return func(*args, **kwargs)
 
     method.__name__ = attr_name
+    method.__qualname__ = f"Triangle.{attr_name}"
     return staticmethod(method)
 
 
 Triangle.aggregate = _bind_method(".utils.aggregate", "aggregate")
 Triangle.summarize = _bind_method(".utils.summarize", "summarize")
-Triangle.blend = _bind_method(
-    ".utils.summarize", "blend", triangle_arg="self_first_in_list"
-)
+Triangle.blend = _bind_method(".utils.summarize", "blend", triangles_arg=True)
 Triangle.split = _bind_method(".utils.summarize", "split")
 Triangle.merge = _bind_method(".utils.merge", "merge")
 Triangle.period_merge = _bind_method(".utils.merge", "period_merge")
-Triangle.coalesce = _bind_method(
-    ".utils.merge", "coalesce", triangle_arg="self_list_only"
-)
+Triangle.coalesce = _bind_method(".utils.merge", "coalesce", triangles_arg=True)
 Triangle.to_incremental = _bind_method(".utils.basis", "to_incremental")
 Triangle.to_cumulative = _bind_method(".utils.basis", "to_cumulative")
 Triangle.add_statics = _bind_method(".utils.fields", "add_statics")
