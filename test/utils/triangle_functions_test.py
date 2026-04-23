@@ -5,6 +5,7 @@ import toolz as tlz
 from numpy.testing import assert_array_almost_equal
 
 from bermuda import *
+from bermuda.utils import extend
 
 from ..triangle_test import *
 

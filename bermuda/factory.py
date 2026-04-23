@@ -1,179 +1,127 @@
-from functools import wraps
+from __future__ import annotations
 
-from .io import (
-    array_data_frame_to_triangle,
-    binary_to_triangle,
-    chain_ladder_to_triangle,
-    dict_to_triangle,
-    json_to_triangle,
-    long_csv_to_triangle,
-    long_data_frame_to_triangle,
-    statics_data_frame_to_triangle,
-    triangle_to_array_data_frame,
-    triangle_to_binary,
-    triangle_to_chain_ladder,
-    triangle_to_dict,
-    triangle_to_json,
-    triangle_to_long_csv,
-    triangle_to_long_data_frame,
-    triangle_to_right_edge_data_frame,
-    triangle_to_wide_csv,
-    triangle_to_wide_data_frame,
-    wide_csv_to_triangle,
-    wide_data_frame_to_triangle,
-)
+import importlib
+from functools import update_wrapper
+
 from .triangle import Triangle
-from .utils import (
-    add_statics,
-    aggregate,
-    blend,
-    coalesce,
-    make_right_diagonal,
-    make_right_triangle,
-    merge,
-    period_merge,
-    split,
-    summarize,
-    thin,
-    to_cumulative,
-    to_incremental,
+
+
+def _module_attr(module_name: str, attr_name: str):
+    module = importlib.import_module(module_name, __package__)
+    return getattr(module, attr_name)
+
+
+def _bind_method(module_name: str, attr_name: str, triangles_arg: bool = False):
+    resolved = None
+
+    def get_func():
+        nonlocal resolved
+        if resolved is None:
+            resolved = _module_attr(module_name, attr_name)
+            update_wrapper(method, resolved)
+        return resolved
+
+    def method(*args, **kwargs):
+        func = get_func()
+        if not triangles_arg:
+            return func(args[0], *args[1:], **kwargs)
+        self, *rest = args
+        triangles = kwargs.pop("triangles", None)
+        if triangles is None:
+            if not rest:
+                raise TypeError(f"{attr_name}() missing required argument: 'triangles'")
+            triangles, *rest = rest
+        return func([self, *triangles], *rest, **kwargs)
+
+    method.__name__ = attr_name
+    method.__qualname__ = f"Triangle.{attr_name}"
+    return method
+
+
+def _bind_staticmethod(module_name: str, attr_name: str):
+    resolved = None
+
+    def get_func():
+        nonlocal resolved
+        if resolved is None:
+            resolved = _module_attr(module_name, attr_name)
+            update_wrapper(method, resolved)
+        return resolved
+
+    def method(*args, **kwargs):
+        func = get_func()
+        return func(*args, **kwargs)
+
+    method.__name__ = attr_name
+    method.__qualname__ = f"Triangle.{attr_name}"
+    return staticmethod(method)
+
+
+Triangle.aggregate = _bind_method(".utils.aggregate", "aggregate")
+Triangle.summarize = _bind_method(".utils.summarize", "summarize")
+Triangle.blend = _bind_method(".utils.summarize", "blend", triangles_arg=True)
+Triangle.split = _bind_method(".utils.summarize", "split")
+Triangle.merge = _bind_method(".utils.merge", "merge")
+Triangle.period_merge = _bind_method(".utils.merge", "period_merge")
+Triangle.coalesce = _bind_method(".utils.merge", "coalesce", triangles_arg=True)
+Triangle.to_incremental = _bind_method(".utils.basis", "to_incremental")
+Triangle.to_cumulative = _bind_method(".utils.basis", "to_cumulative")
+Triangle.add_statics = _bind_method(".utils.fields", "add_statics")
+Triangle.make_right_triangle = _bind_method(".utils.extend", "make_right_triangle")
+Triangle.make_right_diagonal = _bind_method(".utils.extend", "make_right_diagonal")
+Triangle.thin = _bind_method(".utils.thin", "thin")
+
+Triangle.to_array_data_frame = _bind_method(".io.array", "triangle_to_array_data_frame")
+Triangle.to_binary = _bind_method(".io.binary_output", "triangle_to_binary")
+Triangle.to_json = _bind_method(".io.json", "triangle_to_json")
+Triangle.to_chain_ladder = _bind_method(".io.chain_ladder", "triangle_to_chain_ladder")
+Triangle.to_dict = _bind_method(".io.json", "triangle_to_dict")
+Triangle.to_long_csv = _bind_method(".io.data_frame_output", "triangle_to_long_csv")
+Triangle.to_long_data_frame = _bind_method(
+    ".io.data_frame_output", "triangle_to_long_data_frame"
 )
-from .plot import (
-    plot_data_completeness,
-    plot_right_edge,
-    plot_heatmap,
-    plot_atas,
-    plot_growth_curve,
-    plot_mountain,
-    plot_sunset,
-    plot_ballistic,
-    plot_broom,
-    plot_drip,
-    plot_hose,
-    plot_histogram,
+Triangle.to_right_edge_data_frame = _bind_method(
+    ".io.array", "triangle_to_right_edge_data_frame"
+)
+Triangle.to_wide_csv = _bind_method(".io.data_frame_output", "triangle_to_wide_csv")
+Triangle.to_wide_data_frame = _bind_method(
+    ".io.data_frame_output", "triangle_to_wide_data_frame"
 )
 
-# utils
-Triangle.aggregate = wraps(aggregate)(
-    lambda self, *args, **kwargs: aggregate(self, *args, **kwargs)
+Triangle.from_array_data_frame = _bind_staticmethod(
+    ".io.array", "array_data_frame_to_triangle"
 )
-Triangle.summarize = wraps(summarize)(
-    lambda self, *args, **kwargs: summarize(self, *args, **kwargs)
+Triangle.from_binary = _bind_staticmethod(".io.binary_input", "binary_to_triangle")
+Triangle.from_chain_ladder = _bind_staticmethod(
+    ".io.chain_ladder", "chain_ladder_to_triangle"
 )
-Triangle.blend = wraps(blend)(
-    lambda self, triangles, **kwargs: blend(triangles=[self, *triangles], **kwargs)
+Triangle.from_dict = _bind_staticmethod(".io.json", "dict_to_triangle")
+Triangle.from_long_csv = _bind_staticmethod(
+    ".io.data_frame_input", "long_csv_to_triangle"
 )
-Triangle.split = wraps(split)(
-    lambda self, *args, **kwargs: split(self, *args, **kwargs)
+Triangle.from_long_data_frame = _bind_staticmethod(
+    ".io.data_frame_input", "long_data_frame_to_triangle"
 )
-Triangle.merge = wraps(merge)(
-    lambda self, *args, **kwargs: merge(self, *args, **kwargs)
+Triangle.from_statics_data_frame = _bind_staticmethod(
+    ".io.array", "statics_data_frame_to_triangle"
 )
-Triangle.period_merge = wraps(period_merge)(
-    lambda self, *args, **kwargs: period_merge(self, *args, **kwargs)
+Triangle.from_wide_csv = _bind_staticmethod(
+    ".io.data_frame_input", "wide_csv_to_triangle"
 )
-Triangle.coalesce = wraps(coalesce)(
-    lambda self, triangles: coalesce([self, *triangles])
+Triangle.from_wide_data_frame = _bind_staticmethod(
+    ".io.data_frame_input", "wide_data_frame_to_triangle"
 )
-Triangle.to_incremental = wraps(to_incremental)(lambda self: to_incremental(self))
-Triangle.to_cumulative = wraps(to_cumulative)(lambda self: to_cumulative(self))
-Triangle.add_statics = wraps(add_statics)(
-    lambda self, *args, **kwargs: add_statics(self, *args, **kwargs)
-)
-Triangle.make_right_triangle = wraps(make_right_triangle)(
-    lambda self, *args, **kwargs: make_right_triangle(self, *args, **kwargs)
-)
-Triangle.make_right_diagonal = wraps(make_right_diagonal)(
-    lambda self, *args, **kwargs: make_right_diagonal(self, *args, **kwargs)
-)
-Triangle.thin = wraps(thin)(lambda self, *args, **kwargs: thin(self, *args, **kwargs))
+Triangle.from_json = _bind_staticmethod(".io.json", "json_to_triangle")
 
-# io
-Triangle.to_array_data_frame = wraps(triangle_to_array_data_frame)(
-    lambda self, *args, **kwargs: triangle_to_array_data_frame(self, *args, **kwargs)
-)
-Triangle.to_binary = wraps(triangle_to_binary)(
-    lambda self, *args, **kwargs: triangle_to_binary(self, *args, **kwargs)
-)
-Triangle.to_json = wraps(triangle_to_json)(triangle_to_json)
-Triangle.to_chain_ladder = wraps(triangle_to_chain_ladder)(
-    lambda self, *args, **kwargs: triangle_to_chain_ladder(self, *args, **kwargs)
-)
-Triangle.to_dict = wraps(triangle_to_dict)(triangle_to_dict)
-Triangle.to_long_csv = wraps(triangle_to_long_csv)(
-    lambda self, *args, **kwargs: triangle_to_long_csv(self, *args, **kwargs)
-)
-Triangle.to_long_data_frame = wraps(triangle_to_long_data_frame)(
-    lambda self, *args, **kwargs: triangle_to_long_data_frame(self, *args, **kwargs)
-)
-Triangle.to_right_edge_data_frame = wraps(triangle_to_right_edge_data_frame)(
-    lambda self, *args, **kwargs: triangle_to_right_edge_data_frame(
-        self, *args, **kwargs
-    )
-)
-Triangle.to_wide_csv = wraps(triangle_to_wide_csv)(
-    lambda self, *args, **kwargs: triangle_to_wide_csv(self, *args, **kwargs)
-)
-Triangle.to_wide_data_frame = wraps(triangle_to_wide_data_frame)(
-    lambda self, *args, **kwargs: triangle_to_wide_data_frame(self, *args, **kwargs)
-)
-
-# constructors
-Triangle.from_array_data_frame = staticmethod(
-    wraps(array_data_frame_to_triangle)(array_data_frame_to_triangle)
-)
-Triangle.from_binary = staticmethod(wraps(binary_to_triangle)(binary_to_triangle))
-Triangle.from_chain_ladder = staticmethod(
-    wraps(chain_ladder_to_triangle)(chain_ladder_to_triangle)
-)
-Triangle.from_dict = staticmethod(wraps(dict_to_triangle)(dict_to_triangle))
-Triangle.from_long_csv = staticmethod(wraps(long_csv_to_triangle)(long_csv_to_triangle))
-Triangle.from_long_data_frame = staticmethod(
-    wraps(long_data_frame_to_triangle)(long_data_frame_to_triangle)
-)
-Triangle.from_statics_data_frame = staticmethod(
-    wraps(statics_data_frame_to_triangle)(statics_data_frame_to_triangle)
-)
-Triangle.from_wide_csv = staticmethod(wraps(wide_csv_to_triangle)(wide_csv_to_triangle))
-Triangle.from_wide_data_frame = staticmethod(
-    wraps(wide_data_frame_to_triangle)(wide_data_frame_to_triangle)
-)
-Triangle.from_json = staticmethod(wraps(json_to_triangle)(json_to_triangle))
-
-# plots
-Triangle.plot_right_edge = wraps(plot_right_edge)(
-    lambda self, *args, **kwargs: plot_right_edge(self, *args, **kwargs)
-)
-Triangle.plot_data_completeness = wraps(plot_data_completeness)(
-    lambda self, *args, **kwargs: plot_data_completeness(self, *args, **kwargs)
-)
-Triangle.plot_heatmap = wraps(plot_heatmap)(
-    lambda self, *args, **kwargs: plot_heatmap(self, *args, **kwargs)
-)
-Triangle.plot_atas = wraps(plot_atas)(
-    lambda self, *args, **kwargs: plot_atas(self, *args, **kwargs)
-)
-Triangle.plot_growth_curve = wraps(plot_growth_curve)(
-    lambda self, *args, **kwargs: plot_growth_curve(self, *args, **kwargs)
-)
-Triangle.plot_mountain = wraps(plot_mountain)(
-    lambda self, *args, **kwargs: plot_mountain(self, *args, **kwargs)
-)
-Triangle.plot_ballistic = wraps(plot_ballistic)(
-    lambda self, *args, **kwargs: plot_ballistic(self, *args, **kwargs)
-)
-Triangle.plot_broom = wraps(plot_broom)(
-    lambda self, *args, **kwargs: plot_broom(self, *args, **kwargs)
-)
-Triangle.plot_drip = wraps(plot_drip)(
-    lambda self, *args, **kwargs: plot_drip(self, *args, **kwargs)
-)
-Triangle.plot_hose = wraps(plot_hose)(
-    lambda self, *args, **kwargs: plot_hose(self, *args, **kwargs)
-)
-Triangle.plot_sunset = wraps(plot_sunset)(
-    lambda self, *args, **kwargs: plot_sunset(self, *args, **kwargs)
-)
-Triangle.plot_histogram = wraps(plot_histogram)(
-    lambda self, *args, **kwargs: plot_histogram(self, *args, **kwargs)
-)
+Triangle.plot_right_edge = _bind_method(".plot", "plot_right_edge")
+Triangle.plot_data_completeness = _bind_method(".plot", "plot_data_completeness")
+Triangle.plot_heatmap = _bind_method(".plot", "plot_heatmap")
+Triangle.plot_atas = _bind_method(".plot", "plot_atas")
+Triangle.plot_growth_curve = _bind_method(".plot", "plot_growth_curve")
+Triangle.plot_mountain = _bind_method(".plot", "plot_mountain")
+Triangle.plot_ballistic = _bind_method(".plot", "plot_ballistic")
+Triangle.plot_broom = _bind_method(".plot", "plot_broom")
+Triangle.plot_drip = _bind_method(".plot", "plot_drip")
+Triangle.plot_hose = _bind_method(".plot", "plot_hose")
+Triangle.plot_sunset = _bind_method(".plot", "plot_sunset")
+Triangle.plot_histogram = _bind_method(".plot", "plot_histogram")

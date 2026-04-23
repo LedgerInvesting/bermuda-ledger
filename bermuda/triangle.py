@@ -11,8 +11,6 @@ import numpy as np
 import pandas as pd
 import toolz as tlz
 
-import altair as alt
-
 from .base import Cell, IncrementalCell, Metadata, common_metadata, metadata_diff
 from .date_utils import dev_lag_months, eval_date_resolution, period_resolution
 from .errors import DuplicateCellWarning, TriangleEmptyError, TriangleError

@@ -5,12 +5,8 @@ import math
 import struct
 import warnings
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
-import awswrangler as wr
-import boto3
 import numpy as np
-from botocore.config import Config
 
 from ..base import Cell, CumulativeCell, IncrementalCell, Metadata, MetadataValue
 from ..triangle import Triangle
@@ -117,6 +113,9 @@ _S3 = None
 def _open_s3_stream(s3_uri: str) -> io.BufferedReader:
     global _S3
     if _S3 is None:
+        import boto3
+        from botocore.config import Config
+
         _S3 = boto3.client(
             "s3",
             config=Config(
