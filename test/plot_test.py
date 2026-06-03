@@ -1,3 +1,4 @@
+import pytest
 import datetime
 import numpy as np
 
@@ -414,4 +415,14 @@ def test_build_plot_data():
     assert cell["samples"].size == 10
     assert len(cell["binned_pdf"]) == len(cell["binned_cdf"]) == 10
 
+
+def test_build_plot_data_warns_on_equal_arrays():
+    test_predictions = meyers_tri.derive_fields(
+        reported_loss=lambda cell: np.tile(cell["reported_loss"], 10_000),
+    )
+    with pytest.warns(match="all equal"):
+        plot_data = build_plot_data(test_predictions.right_edge, n_bins=10, n_samples=10)
+    cell = plot_data[0]["reported_loss"]
+    assert cell["samples"] is None
+    assert cell["binned_pdf"] is None
 
