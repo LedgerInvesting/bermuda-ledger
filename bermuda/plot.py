@@ -5,6 +5,7 @@ import string
 from dataclasses import dataclass
 from functools import cache, wraps
 from typing import Any, Callable, Literal
+from warnings import warn
 
 import altair as alt
 import numpy as np
@@ -1776,6 +1777,10 @@ def _calculate_field_summary(
     metric = _safe_apply_metric(cell, prev_cell, next_cell, func)
 
     if metric is None or np.isscalar(metric) or len(metric) == 1:
+        return FieldSummary(name, metric, seed=SEED)
+
+    if [m == metric[0] for m in metric]:
+        warn(f"Metric samples for {name} in {cell.metadata, cell.coordinates} are all equal. Building plot data as if it is a constant.")
         return FieldSummary(name, metric, seed=SEED)
 
     return FieldSummary.from_metric(name, metric, keep_samples=keep_samples, n_bins=n_bins, n_samples=n_samples)
