@@ -1779,7 +1779,7 @@ def _calculate_field_summary(
     if metric is None or np.isscalar(metric) or len(metric) == 1:
         return FieldSummary(name, metric, seed=SEED)
 
-    if [m == metric[0] for m in metric]:
+    if all([m == metric[0] for m in metric]):
         warn(f"Metric samples for {name} in {cell.metadata, cell.coordinates} are all equal. Building plot data as if it is a constant.")
         return FieldSummary(name, metric, seed=SEED)
 
