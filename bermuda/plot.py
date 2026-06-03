@@ -123,6 +123,8 @@ class FieldSummary(object):
         cls, name: str, metric: np.ndarray, keep_samples: bool = False, n_bins: int = 40, n_samples: int = 100,
     ) -> FieldSummary:
         freq, bin_edges = np.histogram(metric, bins=n_bins, density=True)
+        if any(np.isnan(freq)) or any(np.isinf(freq)):
+            freq = np.array([0 if np.isnan(f) or np.isinf(f) else 0 for f in freq])
         cumulative = np.cumsum(freq * np.diff(bin_edges))
         binned_pdf = {(left, right): f for left, right, f in zip(bin_edges[:-1], bin_edges[1:], freq)}
         binned_cdf = {p: q for p, q in zip(bin_edges[1:], cumulative)} 
