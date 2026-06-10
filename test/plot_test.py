@@ -415,6 +415,20 @@ def test_build_plot_data():
     assert cell["samples"].size == 10
     assert len(cell["binned_pdf"]) == len(cell["binned_cdf"]) == 10
 
+def test_build_plot_data_includes_written_premium():
+    test = meyers_tri.derive_fields(
+        written_premium=lambda cell: cell["earned_premium"],
+    )
+    test_written_only = meyers_tri.derive_fields(
+        written_premium=lambda cell: cell["earned_premium"],
+    ).select(["paid_loss", "written_premium"])
+    plot_data = build_plot_data(test.right_edge, n_bins=10, n_samples=10)
+    assert "written_premium" in plot_data[0]
+
+    plot_data = build_plot_data(test_written_only.right_edge, n_bins=10, n_samples=10)
+    assert "written_premium" in plot_data[0]
+    assert plot_data[0]["paid_loss_ratio"]["metric"] == test.right_edge.extract(lambda c: 100 * c["paid_loss"] / c["written_premium"])[0]
+
 
 def test_build_plot_data_warns_on_equal_arrays():
     test_predictions = meyers_tri.derive_fields(
