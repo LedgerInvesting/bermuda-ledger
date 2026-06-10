@@ -38,18 +38,28 @@ CellArgs = Cell | Cell, Cell, Cell
 MetricFunc = Callable[[CellArgs], float | int | np.ndarray]
 MetricFuncDict = dict[str, MetricFunc]
 
+def _choose_premium(cell):
+    """Choose exposure metric, defaulting to earned premium, followed by written premium"""
+    ep = cell.values.get("earned_premium")
+    if ep is None:
+        return cell.values.get("written_premium")
+    return ep
+
+
+
 COMMON_METRIC_DICT: MetricFuncDict = {
-    "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"],
+    "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / _choose_premium(cell),
     "Reported Loss Ratio": lambda cell: 100
     * cell["reported_loss"]
-    / cell["earned_premium"],
+    / _choose_premium(cell),
     "Incurred Loss Ratio": lambda cell: 100
     * cell["incurred_loss"]
-    / cell["earned_premium"],
+    / _choose_premium(cell),
     "Paid Loss": lambda cell: cell["paid_loss"],
     "Reported Loss": lambda cell: cell["reported_loss"],
     "Incurred Loss": lambda cell: cell["incurred_loss"],
     "Earned Premium": lambda cell: cell["earned_premium"],
+    "Written Premium": lambda cell: cell["written_premium"],
     "Reported Claims": lambda cell: cell["reported_claims"],
     "Paid ATA": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"],
     "Reported ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"],
