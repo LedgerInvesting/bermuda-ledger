@@ -1,9 +1,10 @@
+import pytest
 import datetime
 import numpy as np
 
 from bermuda import Triangle, meyers_tri, Metadata
 
-from bermuda.plot import _safe_apply_metric
+from bermuda.plot import _safe_apply_metric, build_plot_data
 
 
 def test_plot_data_completeness():
@@ -56,15 +57,16 @@ def test_plot_right_edge_with_predictions():
     )
     test_predictions = test.derive_fields(
         reported_loss=lambda cell: cell["reported_loss"]
-        if cell.period_start.year < 1995
+        if cell.period_start.year < 1995 or cell.dev_lag() < 36
         else np.random.normal(cell["reported_loss"], 1e5, 10_000),
         paid_loss=lambda cell: cell["paid_loss"]
-        if cell.period_start.year < 1995
+        if cell.period_start.year < 1995 or cell.dev_lag() < 36
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
     test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="ribbon")
     test_predictions.plot_right_edge(uncertainty=True, uncertainty_type="segments")
+    test_predictions.plot_right_edge(hide_samples=True)
 
 
 def test_plot_heatmap():
@@ -76,7 +78,9 @@ def test_plot_heatmap():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    (test + test2).plot_heatmap(["Paid Loss Ratio", "Reported Loss Ratio"])
+    (test + test2).plot_heatmap(
+        ["Paid Loss Ratio", "Reported Loss Ratio"], show_values=True
+    )
     test.plot_heatmap(
         {
             "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
@@ -88,13 +92,15 @@ def test_plot_heatmap():
     )
     (test + test2 + test3).plot_heatmap(
         {
-            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
-            "Reported PR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
-            "Earned Premium": lambda cell: cell["earned_premium"] / 1e6,
+            "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"] * 100,
+            "Reported LR": lambda cell: cell["reported_loss"]
+            / cell["earned_premium"]
+            * 100,
+            "Earned Premium": lambda cell: cell["earned_premium"],
         },
         ncols=3,
     )
-    (test + test2).plot_heatmap()
+    (test + test2).plot_heatmap("Paid Loss", show_values=False)
     (test + test2 + test3 + test4 + test5).plot_heatmap()
     (test + test2 + test3 + test4 + test5).plot_heatmap(
         {"Earned Premium": lambda cell: cell["earned_premium"] / 1e6}
@@ -161,6 +167,7 @@ def test_plot_growth_curve():
             / cell["earned_premium"],
         }
     )
+    test.plot_growth_curve(["Paid Loss", "Reported Loss Ratio"])
 
 
 def test_plot_growth_curve_with_predictions():
@@ -176,9 +183,9 @@ def test_plot_growth_curve_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_growth_curve()
-    test_predictions.plot_growth_curve(uncertainty_type="segments")
     test_predictions.plot_growth_curve(uncertainty_type="spaghetti", n_lines=50)
+    test_predictions.plot_growth_curve(hide_samples=True)
+    test_predictions.plot_growth_curve(uncertainty_type="segments")
     test_predictions.plot_growth_curve(
         {
             "Reported LR": lambda cell: 100
@@ -194,7 +201,7 @@ def test_plot_mountain():
         reported_claims=lambda cell: cell["reported_loss"],
     )
     test2 = test.derive_metadata(id=2)
-    test.plot_mountain()
+    test.plot_mountain(highlight_ultimates=False)
     (test + test2).plot_mountain(
         {
             "Paid LR": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"],
@@ -226,7 +233,7 @@ def test_plot_mountain_with_predictions():
             "Reported LR": lambda cell: 100
             * cell["reported_loss"]
             / cell["earned_premium"]
-        }
+        },
     )
 
 
@@ -239,9 +246,12 @@ def test_plot_ballistic():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_ballistic()
+    test.plot_ballistic(show_points=False)
     (test + test2 + test3 + test4 + test5).plot_ballistic(
-        ncols=2, width=500, height=300
+        ncols=2,
+        width=500,
+        height=300,
+        show_points=False,
     )
 
 
@@ -252,7 +262,7 @@ def test_plot_ballistic_with_predictions():
         else np.random.normal(cell["reported_loss"], 1e6, 10_000),
     )
 
-    test_predictions.plot_ballistic()
+    test_predictions.plot_ballistic(show_points=False)
 
 
 def test_plot_broom():
@@ -265,6 +275,7 @@ def test_plot_broom():
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
     test.plot_broom()
+    test.plot_broom(show_points=False)
     test.plot_broom(rule=None)
     (test + test2 + test3 + test4 + test5).plot_broom(ncols=2, width=500, height=300)
 
@@ -282,7 +293,7 @@ def test_plot_broom_with_predictions():
         else np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
 
-    test_predictions.plot_broom()
+    test_predictions.plot_broom(show_points=False)
 
 
 def test_plot_drip():
@@ -295,7 +306,7 @@ def test_plot_drip():
     test3 = test.derive_metadata(id=3)
     test4 = test.derive_metadata(id=4)
     test5 = test.derive_metadata(id=5)
-    test.plot_drip()
+    test.plot_drip(show_points=False)
     (test + test2 + test3 + test4 + test5).plot_drip()
 
 
@@ -361,26 +372,71 @@ def test_plot_histogram():
         paid_loss=lambda cell: np.random.normal(cell["paid_loss"], 1e5, 10_000),
     )
     test2 = test.derive_metadata(id=2)
-    test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"])
-    (test + test2).plot_histogram(["Paid Loss", "Reported Loss"])
+    test.plot_histogram(["Paid Loss Ratio", "Reported Loss Ratio"], right_edge=False)
+    (test + test2).plot_histogram(["Paid Loss", "Reported Loss"], right_edge=True)
 
 
 def test_plot_metric_data_functions():
+    zipped_cells = lambda row: list(zip(row, [None, *row[:-1]], [*row[1:], None]))
     assert all(
-        _safe_apply_metric(cell, None, lambda ob: ob["paid_loss"]) is not None
-        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+        _safe_apply_metric(cell, prev_cell, next_cell, lambda ob: ob["paid_loss"]) is not None
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
     )
     assert all(
         _safe_apply_metric(
-            cell, None, lambda ob: ob["paid_loss"] / ob["earned_premium"]
+            cell, prev_cell, next_cell, lambda ob: ob["paid_loss"] / ob["earned_premium"]
         )
-        is not None
-        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
     )
-    assert all(
+    atas_prev = [
         _safe_apply_metric(
-            cell, prev_cell, lambda cell, prev: cell["paid_loss"] / prev["paid_loss"]
+            cell, prev_cell, next_cell, lambda cell, prev, _: cell["paid_loss"] / prev["paid_loss"]
         )
-        for cell, prev_cell in zip(meyers_tri, [None, *meyers_tri[:-1]])
-        if cell.dev_lag() > 0
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
+    ]
+    atas_next = [
+        _safe_apply_metric(
+            cell, prev_cell, next_cell, lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"]
+        )
+        for _, row in meyers_tri.period_rows
+        for cell, prev_cell, next_cell in zipped_cells(row)
+    ]
+    assert np.all([i for i in atas_prev if i] == [i for i in atas_next if i])
+
+def test_build_plot_data():
+    test_predictions = meyers_tri.derive_fields(
+        reported_loss=lambda cell: np.random.normal(cell["reported_loss"], 1e5, 10_000),
     )
+    plot_data = build_plot_data(test_predictions.right_edge, n_bins=10, n_samples=10)
+    cell = plot_data[0]["reported_loss"]
+    assert cell["samples"].size == 10
+    assert len(cell["binned_pdf"]) == len(cell["binned_cdf"]) == 10
+
+def test_build_plot_data_includes_written_premium():
+    test = meyers_tri.derive_fields(
+        written_premium=lambda cell: cell["earned_premium"],
+    )
+    test_written_only = meyers_tri.derive_fields(
+        written_premium=lambda cell: cell["earned_premium"],
+    ).select(["paid_loss", "written_premium"])
+    plot_data = build_plot_data(test.right_edge, n_bins=10, n_samples=10)
+    assert "written_premium" in plot_data[0]
+
+    plot_data = build_plot_data(test_written_only.right_edge, n_bins=10, n_samples=10)
+    assert "written_premium" in plot_data[0]
+    assert plot_data[0]["paid_loss_ratio"]["metric"] == test.right_edge.extract(lambda c: 100 * c["paid_loss"] / c["written_premium"])[0]
+
+
+def test_build_plot_data_warns_on_equal_arrays():
+    test_predictions = meyers_tri.derive_fields(
+        reported_loss=lambda cell: np.tile(cell["reported_loss"], 10_000),
+    )
+    with pytest.warns(match="all equal"):
+        plot_data = build_plot_data(test_predictions.right_edge, n_bins=10, n_samples=10)
+    cell = plot_data[0]["reported_loss"]
+    assert cell["samples"] is None
+    assert cell["binned_pdf"] is None
+

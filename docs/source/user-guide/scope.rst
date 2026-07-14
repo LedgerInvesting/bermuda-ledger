@@ -12,5 +12,5 @@ triangles from/to a number of different
 data formats, allowing for integration
 with other software straight-forward.
 Bermuda also is the primary triangle input data
-structure to the rest of `Ledger Investing's <ledgerinvesting.com>`_
+structure to the rest of `Korra's <korra.com>`_
 modeling ecosystem. 

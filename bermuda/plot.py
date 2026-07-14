@@ -1,13 +1,22 @@
+from __future__ import annotations
+
+import json
 import string
+from dataclasses import dataclass
+from functools import cache, wraps
+from typing import Any, Callable, Literal
+from warnings import warn
 
 import altair as alt
-from babel.numbers import get_currency_symbol
-import pandas as pd
 import numpy as np
-from typing import Callable, Any, Literal
+import pandas as pd
+from babel.numbers import get_currency_symbol
+from frozendict import frozendict
+import re
 
-from .triangle import Triangle, Cell
 from .base import metadata_diff
+from .date_utils import eval_date_resolution, period_resolution
+from .triangle import Cell, Triangle
 
 alt.renderers.enable("browser")
 
@@ -29,29 +38,148 @@ CellArgs = Cell | Cell, Cell, Cell
 MetricFunc = Callable[[CellArgs], float | int | np.ndarray]
 MetricFuncDict = dict[str, MetricFunc]
 
+def _choose_premium(cell):
+    """Choose exposure metric, defaulting to earned premium, followed by written premium"""
+    ep = cell.values.get("earned_premium")
+    if ep is None:
+        return cell.values.get("written_premium")
+    return ep
+
+
+
 COMMON_METRIC_DICT: MetricFuncDict = {
-    "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / cell["earned_premium"],
+    "Paid Loss Ratio": lambda cell: 100 * cell["paid_loss"] / _choose_premium(cell),
     "Reported Loss Ratio": lambda cell: 100
     * cell["reported_loss"]
-    / cell["earned_premium"],
+    / _choose_premium(cell),
     "Incurred Loss Ratio": lambda cell: 100
     * cell["incurred_loss"]
-    / cell["earned_premium"],
-    "Paid Loss": lambda cell: cell["paid_loss"] / 1e6,
-    "Reported Loss": lambda cell: cell["reported_loss"] / 1e6,
-    "Incurred Loss": lambda cell: cell["incurred_loss"] / 1e6,
-    "Paid ATA": lambda cell, prev_cell: cell["paid_loss"] / prev_cell["paid_loss"],
-    "Reported ATA": lambda cell, prev_cell: cell["reported_loss"]
-    / prev_cell["reported_loss"],
-    "Paid Incremental ATA": lambda cell, prev_cell: cell["paid_loss"]
-    / prev_cell["paid_loss"]
-    - 1,
-    "Reported Incremental ATA": lambda cell, prev_cell: cell["reported_loss"]
-    / prev_cell["reported_loss"]
-    - 1,
+    / _choose_premium(cell),
+    "Paid Loss": lambda cell: cell["paid_loss"],
+    "Reported Loss": lambda cell: cell["reported_loss"],
+    "Incurred Loss": lambda cell: cell["incurred_loss"],
+    "Earned Premium": lambda cell: cell["earned_premium"],
+    "Written Premium": lambda cell: cell["written_premium"],
+    "Reported Claims": lambda cell: cell["reported_claims"],
+    "Paid ATA": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"],
+    "Reported ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"],
+    "Paid Incremental ATA": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"] - 1,
+    "Reported Incremental ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"] - 1,
 }
 
+SEED = 1234
+
 MetricFuncSpec = MetricFuncDict | str | list[str]
+
+
+@dataclass
+class FieldSummary(object):
+    field: str
+    metric: float | np.ndarray | None
+    mean: float | None = None
+    median: float | None = None
+    sd: float | None = None
+    min: float | None = None
+    max: float | None = None
+    q2_5: float | None = None
+    q5: float | None = None
+    q10: float | None = None
+    q20: float | None = None
+    q50: float | None = None
+    q80: float | None = None
+    q90: float | None = None
+    q95: float | None = None
+    q97_5: float | None = None
+    binned_pdf: list[dict[str, float]] | None = None
+    binned_cdf: list[dict[str, float]] | None = None
+    samples: list[float] | None = None
+    is_forecast: bool = False
+    keep_samples: bool = False
+    seed: int = None
+
+    def __post_init__(self):
+        if self.metric is not None:
+            if self.keep_samples:
+                self.metric = {i: v for i, v in enumerate(self.metric)}
+            else:
+                self.metric = np.mean(self.metric)
+            if self.mean is None:
+                self.mean = np.mean(self.metric)
+
+        if self.sd:
+            self.is_forecast = True
+
+    def tooltip(self, unit: str = "") -> str:
+        mean = f"{self.mean:,.{self.precision}f}"
+        sd = "" if self.sd is None else f" (SD: {self.sd:,.{self.precision}f})"
+        if unit:
+            return f"{self.field} ({unit}): {mean}{sd}"
+        return f"{self.field}: {mean}{sd}"
+
+    @property
+    def precision(self) -> str:
+        return "0" if self.mean > 100 else "2"
+
+    @property
+    def snake_case_field(self):
+        return _to_snake_case(self.field)
+
+    @staticmethod
+    def quantiles() -> list[float]:
+        return [0.025, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.975]
+
+    @classmethod
+    def from_metric(
+        cls, name: str, metric: np.ndarray, keep_samples: bool = False, n_bins: int = 40, n_samples: int = 100,
+    ) -> FieldSummary:
+        freq, bin_edges = np.histogram(metric, bins=n_bins, density=True)
+        if any(np.isnan(freq)) or any(np.isinf(freq)):
+            freq = np.array([0 if np.isnan(f) or np.isinf(f) else 0 for f in freq])
+        cumulative = np.cumsum(freq * np.diff(bin_edges))
+        binned_pdf = {(left, right): f for left, right, f in zip(bin_edges[:-1], bin_edges[1:], freq)}
+        binned_cdf = {p: q for p, q in zip(bin_edges[1:], cumulative)} 
+        
+        if isinstance(metric, np.ndarray):
+            # we always use the same random state instance to preserve samples
+            # from the same joint posterior
+            rng = np.random.default_rng(seed=SEED)
+            samples = rng.choice(metric, size=n_samples, replace=True)
+        else:
+            samples = None
+
+        return cls(
+            name,
+            metric,
+            np.mean(metric),
+            np.median(metric),
+            np.std(metric),
+            np.min(metric),
+            np.max(metric),
+            *np.quantile(metric, cls.quantiles()),
+            binned_pdf=binned_pdf,
+            binned_cdf=binned_cdf,
+            samples=samples,
+            keep_samples=keep_samples,
+            seed=SEED,
+        )
+
+    def dict(self, return_empty: bool = False, unit: str = ""):
+        if self.mean is None:
+            return {}
+        return {
+            **self.__dict__,
+            "tooltip": self.tooltip(unit),
+            "snake_case_field": self.snake_case_field,
+            "unit": unit,
+            "is_forecast": self.is_forecast,
+        }
+
+    def json(self, return_empty: bool = False, unit: str = ""):
+        json_dict = {
+            k: "null" if v is None else {str(kk) if isinstance(kk, tuple) else kk: vv for kk, vv in v.items()} if isinstance(v, dict) else list(v) if isinstance(v, np.ndarray) else v
+            for k, v in self.dict(return_empty, unit).items()
+        }
+        return json_dict
 
 
 def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
@@ -69,6 +197,136 @@ def _resolve_metric_spec(metric_spec: MetricFuncSpec) -> MetricFuncDict:
         return result
     else:
         return metric_spec
+
+
+# Pattern from https://stackoverflow.com/a/53394430
+def freezeargs(func):
+    """Convert a mutable dictionary into immutable.
+    Useful to be compatible with cache
+    """
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        args = (frozendict(arg) if isinstance(arg, dict) else arg for arg in args)
+        kwargs = {
+            k: frozendict(v) if isinstance(v, dict) else v for k, v in kwargs.items()
+        }
+        return func(*args, **kwargs)
+
+    return wrapped
+
+
+def _flatten_dict(x: dict, prepend: str = "") -> dict[str, Any]:
+    out = {}
+    for key, value in x.items():
+        if isinstance(value, dict):
+            out |= _flatten_dict(value, prepend=str(key) + "_")
+        else:
+            out[prepend + str(key)] = value
+    return out
+
+
+def _to_snake_case(x: str) -> str:
+    return x.replace(" ", "_").lower()
+
+def _to_camel_case(x: str) -> str:
+    return re.sub(r'_([a-z])', lambda match: match.group(1).upper(), x)
+
+
+@freezeargs
+@cache
+def build_plot_data(
+    triangle: Triangle,
+    metric_dict: MetricFuncDict | None = None,
+    remove_empties: bool = True,
+    flat: bool = False,
+    keep_samples: bool = False,
+    n_bins: int = 40,
+    n_samples: int = 100,
+) -> list[dict[str, Any]]:
+    """Convenience function for building plot data.
+
+    By default, this function will calculate all plot data
+    for metrics in COMMON_METRIC_DICT. If bespoke metrics
+    are needed, users can pass in a `metric_dict` of their own.
+
+    The returned object is a list of dictionaries. If `flat=False`,
+    then each dictionary is nested, with each metric having it's own
+    metric spec, e.g. [{'paid_loss_ratio': {'mean': 0.25, 'sd': 0.05}}].
+    If `flat=True`, then the dictionaries are non-nested,
+    e.g. [{'paid_loss_ratio_mean': 0.25, 'paid_loss_ratio_sd': 0.05}}].
+
+    Args:
+        triangle: The triangle to plot.
+        metric_dict: A MetricFuncDict to override the default metrics used.
+        remove_empties: Remove any cells that don't have data.
+        flat: Return a flat dictionary.
+        keep_samples: Keep field samples (e.g. distribution variates) in the summary.
+    """
+    currency = _currency_symbol(triangle)
+    unit_lookup = {
+        field: (
+            currency
+            if ("loss" in field.lower() or "premium" in field.lower())
+            and "ratio" not in field.lower()
+            else "%"
+            if "ratio" in field.lower()
+            else "%"
+            if "share" in field.lower()
+            else "N"
+            if "claims" in field.lower()
+            else ""
+        )
+        for field in (metric_dict or COMMON_METRIC_DICT)
+    }
+    field_summaries = {
+        cell: {
+            _to_snake_case(name): _calculate_field_summary(
+                cell, prev_cell, next_cell, metric, name, n_bins=n_bins, n_samples=n_samples, keep_samples=keep_samples
+            ).dict(remove_empties, unit_lookup.get(name, ""))
+            for name, metric in (metric_dict or COMMON_METRIC_DICT).items()
+        }
+        for _, row in triangle.period_rows
+        for cell, prev_cell, next_cell 
+        in zip(row, [None, *row[:-1]], [*row[1:], None])
+    }
+
+    if remove_empties:
+        field_summaries = {
+            cell: {name: summary for name, summary in values.items() if summary}
+            for cell, values in field_summaries.items()
+        }
+
+    plot_data = [
+        {
+            **_core_plot_data(cell),
+            "last_lag": max(
+                triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
+            ),
+            "last_observed_lag": max(
+                _remove_triangle_samples(triangle)
+                .filter(lambda ob: ob.period == cell.period)
+                .dev_lags()
+                or [0]
+            )
+            or None,
+            "fields": list(cell.values),
+            "experience_resolution": period_resolution(triangle),
+            "evaluation_resolution": eval_date_resolution(triangle),
+            "tooltip": ", ".join(
+                [
+                    v["tooltip"]
+                    for v in field_summaries[cell].values()
+                    if v["snake_case_field"] in cell.values
+                ]
+            ),
+            **field_summaries[cell],
+        }
+        for cell in triangle
+    ]
+    if flat:
+        return [_flatten_dict(v) for v in plot_data]
+    return plot_data
 
 
 @alt.theme.register("bermuda_plot_theme", enable=True)
@@ -90,6 +348,7 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
             },
             "mark": {"color": "black"},
             "title": {"anchor": "start", "offset": 20},
+            "axis": {"labelOverlap": True},
             "legend": {
                 "orient": "right",
                 "titleAnchor": "start",
@@ -101,8 +360,25 @@ def bermuda_plot_theme() -> alt.theme.ThemeConfig:
     }
 
 
+def _remove_triangle_samples(triangle: Triangle) -> Triangle:
+    """Removes cells that contain samples. The primary use-case
+    of this method is to remove future predictions from a triangle to make
+    investigating observed data in combined triangles easier."""
+    if triangle.num_samples == 1:
+        return triangle
+
+    int_cells = []
+    for cell in triangle:
+        if not any(
+            isinstance(v, np.ndarray) and v.size > 1 for v in cell.values.values()
+        ):
+            int_cells.append(cell)
+    return Triangle(int_cells)
+
+
 def plot_right_edge(
     triangle: Triangle,
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -116,7 +392,7 @@ def plot_right_edge(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_right_edge,
         title=main_title,
         facet_titles=facet_titles,
@@ -143,131 +419,123 @@ def _plot_right_edge(
             f"This triangle contains {triangle.fields}"
         )
 
-    loss_fields = [field for field in triangle.fields if "_loss" in field]
-
-    loss_data = alt.Data(
-        values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    **_calculate_field_summary(
-                        cell=cell,
-                        prev_cell=None,
-                        func=lambda ob: ob[field] / ob["earned_premium"],
-                        name="loss_ratio",
-                    ),
-                    "Field": field.replace("_loss", "").title() + " LR",
-                }
-                for cell in triangle.right_edge
-                for field in loss_fields
-                if "earned_premium" in cell
-            ]
-        ]
-    )
-
-    premium_data = alt.Data(
-        values=[
-            *[
-                {
-                    "period_start": pd.to_datetime(cell.period_start),
-                    "period_end": pd.to_datetime(cell.period_end),
-                    "evaluation_date": pd.to_datetime(cell.evaluation_date),
-                    "dev_lag": cell.dev_lag(),
-                    "Earned Premium": cell["earned_premium"],
-                    "Field": "Earned Premium",
-                }
-                for cell in triangle.right_edge
-                if "earned_premium" in cell
-            ]
-        ]
-    )
+    data = alt.Data(values=build_plot_data(triangle.right_edge, COMMON_METRIC_DICT))
 
     currency = _currency_symbol(triangle)
 
     bar = (
-        alt.Chart(premium_data, title=title)
+        alt.Chart(data, title=title)
         .mark_bar()
         .encode(
             x=alt.X("yearmonth(period_start):O"),
-            y=alt.Y("Earned Premium:Q").axis(format="$.2s"),
-            color=alt.Color("Field:N").scale(range=["lightgray"]),
+            y=alt.Y(f"earned_premium.mean:Q").axis(
+                title="Earned Premium", format="$.2s"
+            ),
+            color=alt.Color("earned_premium.field:N")
+            .scale(range=["lightgray"])
+            .title("Field"),
             tooltip=[
                 alt.Tooltip("period_start:T", title="Period Start"),
                 alt.Tooltip("period_end:T", title="Period End"),
                 alt.Tooltip("dev_lag:O", title="Dev Lag"),
                 alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-                alt.Tooltip("Earned Premium:Q", format=f"{currency},.0f"),
+                alt.Tooltip(
+                    f"earned_premium.tooltip:N",
+                    title="Bar",
+                ),
             ],
         )
     )
 
-    if uncertainty and uncertainty_type == "ribbon":
-        loss_error = (
-            alt.Chart(loss_data)
-            .mark_area(
-                opacity=0.5,
-            )
-            .encode(
-                x=alt.X("yearmonth(period_start):T"),
-                y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
-                y2=alt.Y2("loss_ratio_upper_ci:Q"),
-                color=alt.Color("Field:N"),
-            )
-        )
-    elif uncertainty and uncertainty_type == "segments":
-        loss_error = (
-            alt.Chart(loss_data)
-            .mark_errorbar(thickness=3)
-            .encode(
-                x=alt.X("yearmonth(period_start):T").title("Period Start"),
-                y=alt.Y("loss_ratio_lower_ci:Q").axis(title="Loss Ratio %", format="%"),
-                y2=alt.Y2("loss_ratio_upper_ci:Q"),
-                color=alt.Color("Field:N"),
-            )
-        )
-    else:
-        loss_error = alt.LayerChart()
-
-    lines = (
-        alt.Chart(loss_data)
-        .mark_line(
-            size=1,
-        )
-        .encode(
-            x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
-                "Period Start"
-            ),
-            y=alt.Y(
-                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
-            ).title("Loss Ratio %"),
-            color=alt.Color("Field:N"),
+    loss_error = alt.LayerChart()
+    loss_fields = sorted(
+        set(
+            [
+                key
+                for cell_values in data.values
+                for key in cell_values
+                if "loss_ratio" in key
+            ]
         )
     )
+    lines = alt.LayerChart()
+    points = alt.LayerChart()
 
-    points = (
-        alt.Chart(loss_data)
-        .mark_point(
-            size=max(20, 100 / mark_scaler),
-            filled=True,
-            opacity=1,
+    for field in loss_fields:
+        snake_name = _to_snake_case(field)
+        if uncertainty and uncertainty_type == "ribbon":
+            loss_error += (
+                alt.Chart(data)
+                .mark_area(
+                    opacity=0.5,
+                )
+                .encode(
+                    x=alt.X("yearmonth(period_start):T"),
+                    y=alt.Y(f"{snake_name}.q5:Q").axis(
+                        title="Loss Ratio %", format=".0f"
+                    ),
+                    y2=alt.Y2(f"{snake_name}.q95:Q"),
+                    color=alt.Color(f"{snake_name}.field:N"),
+                )
+            )
+        elif uncertainty and uncertainty_type == "segments":
+            loss_error += (
+                alt.Chart(data)
+                .mark_rule(thickness=3)
+                .encode(
+                    x=alt.X("yearmonth(period_start):T").title("Period Start"),
+                    y=alt.Y(f"{snake_name}.q5:Q").axis(
+                        title="Loss Ratio %", format=".0f"
+                    ),
+                    y2=alt.Y2(f"{snake_name}.q95:Q"),
+                    color=alt.Color(f"{snake_name}.field:N"),
+                )
+            )
+
+        lines += (
+            alt.Chart(data)
+            .mark_line(
+                size=1,
+            )
+            .encode(
+                x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+                    "Period Start"
+                ),
+                y=alt.Y(
+                    f"{snake_name}.mean:Q",
+                    scale=alt.Scale(zero=True),
+                    axis=alt.Axis(format=".0f"),
+                ).title("Loss Ratio %"),
+                color=alt.Color(f"{snake_name}.field:N").legend(title=None),
+            )
+        ).interactive()
+
+        points += (
+            alt.Chart(data)
+            .mark_point(
+                size=max(20, 100 / mark_scaler),
+                filled=True,
+                opacity=1,
+            )
+            .encode(
+                x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
+                    "Period Start"
+                ),
+                y=alt.Y(
+                    f"{snake_name}.mean:Q",
+                    scale=alt.Scale(zero=True),
+                    axis=alt.Axis(format=".0f"),
+                ).title("Loss Ratio %"),
+                color=alt.Color(f"{field}.field:N").legend(title=None),
+                tooltip=[
+                    alt.Tooltip("period_start:T", title="Period Start"),
+                    alt.Tooltip("period_end:T", title="Period End"),
+                    alt.Tooltip("dev_lag:O", title="Dev Lag"),
+                    alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
+                    alt.Tooltip(f"{snake_name}.tooltip:N", title="Field"),
+                ],
+            )
         )
-        .encode(
-            x=alt.X("yearmonth(period_start):T", axis=alt.Axis(labelAngle=0)).title(
-                "Period Start"
-            ),
-            y=alt.Y(
-                "loss_ratio:Q", scale=alt.Scale(zero=True), axis=alt.Axis(format="%")
-            ),
-            color=alt.Color("Field:N").legend(title=None),
-            tooltip=[
-                alt.Tooltip("period_start:T", title="Period Start"),
-                alt.Tooltip("period_end:T", title="Period End"),
-                alt.Tooltip("dev_lag:O", title="Dev Lag"),
-                alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
-                alt.Tooltip("loss_ratio:Q", title="Loss Ratio (%)", format=".2%"),
-            ],
-        )
-    )
 
     fig = alt.layer(bar, loss_error + lines + points).resolve_scale(
         y="independent",
@@ -279,6 +547,7 @@ def _plot_right_edge(
 
 def plot_data_completeness(
     triangle: Triangle,
+    hide_samples: bool = False,
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
@@ -291,7 +560,7 @@ def plot_data_completeness(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_data_completeness,
         title=main_title,
         facet_titles=facet_titles,
@@ -319,33 +588,14 @@ def _plot_data_completeness(
 
     selection = alt.selection_point()
 
-    cell_data = alt.Data(
-        values=[
-            *[
-                {
-                    "period_start": pd.to_datetime(cell.period_start),
-                    "period_end": pd.to_datetime(cell.period_end),
-                    "evaluation_date": pd.to_datetime(cell.evaluation_date),
-                    "dev_lag": cell.dev_lag(),
-                    "Number of Fields": len(cell.values),
-                    "Fields": ", ".join(
-                        [
-                            field.replace("_", " ").title()
-                            + f" ({currency}{np.mean(cell[field]):,.0f})"
-                            for field in cell.values
-                        ]
-                    ),
-                }
-                for cell in triangle.cells
-            ]
-        ]
-    )
+    data = alt.Data(values=build_plot_data(triangle))
 
     fig = (
         alt.Chart(
-            cell_data,
+            data,
             title=title,
         )
+        .transform_calculate(n_fields=alt.expr.length(alt.datum.fields))
         .mark_circle(size=500 * 1 / mark_scaler, opacity=1)
         .encode(
             alt.X(
@@ -356,7 +606,7 @@ def _plot_data_completeness(
             ).title("Period Start"),
             color=alt.condition(
                 selection,
-                alt.Color("Number of Fields:N").scale(scheme="dark2"),
+                alt.Color("n_fields:N").scale(scheme="dark2").title("Number of Fields"),
                 alt.value("lightgray"),
             ),
             tooltip=[
@@ -364,7 +614,7 @@ def _plot_data_completeness(
                 alt.Tooltip("period_end:T", title="Period End"),
                 alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
                 alt.Tooltip("dev_lag:N", title="Dev Lag (months)"),
-                alt.Tooltip("Fields:N"),
+                alt.Tooltip("tooltip:N", title="Fields"),
             ],
         )
         .add_params(selection)
@@ -376,6 +626,8 @@ def _plot_data_completeness(
 def plot_heatmap(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    hide_samples: bool = False,
+    show_values: bool = True,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -391,7 +643,7 @@ def plot_heatmap(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle=triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_heatmap,
             metric_dict=metric_dict,
             title=main_title,
@@ -400,6 +652,7 @@ def plot_heatmap(
             height=height,
             mark_scaler=max_cols,
             ncols=max_cols,
+            show_values=show_values,
         )
         .resolve_scale(color="independent")
         .resolve_legend(color="independent")
@@ -411,35 +664,31 @@ def _plot_heatmap(
     triangle: Triangle,
     metric: MetricFunc,
     name: str,
+    show_values: bool,
     title: alt.Title,
     mark_scaler: int,
 ) -> alt.Chart:
-    metric_data = alt.Data(
-        values=[
-            {
-                **_core_plot_data(cell),
-                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                "Field": name,
-            }
-            for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-        ]
-    )
+    snake_name = _to_snake_case(name)
+    data = alt.Data(values=build_plot_data(triangle, {name: metric}))
 
-    base = alt.Chart(metric_data, title=title).encode(
+    base = alt.Chart(data, title=title).encode(
         x=alt.X("dev_lag:N", axis=alt.Axis(labelAngle=0)).title("Dev Lag (months)"),
         y=alt.X("yearmonth(period_start):O", scale=alt.Scale(reverse=False)).title(
             "Period Start"
         ),
     )
 
-    stroke_predicate = alt.datum.metric_sd / alt.datum.metric > 0
     selection = alt.selection_interval()
     heatmap = (
         base.mark_rect()
         .encode(
             color=alt.when(selection)
             .then(
-                alt.Color("metric:Q", scale=alt.Scale(range=MANAGUA_VALS)).title(name)
+                alt.Color(
+                    f"{snake_name}.mean:Q",
+                    scale=alt.Scale(scheme="blueorange"),
+                    legend=alt.Legend(title=name, format=".2s"),
+                ).title(name)
             )
             .otherwise(
                 alt.value("gray"),
@@ -449,28 +698,27 @@ def _plot_heatmap(
                 alt.Tooltip("period_end:T", title="Period End"),
                 alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
                 alt.Tooltip("dev_lag:O", title="Dev Lag (months)"),
-                alt.Tooltip("metric:Q", title=name),
+                alt.Tooltip(f"{snake_name}.tooltip:N", title="Field"),
             ],
-            stroke=alt.when(stroke_predicate).then(alt.value("black")),
-            strokeWidth=alt.when(stroke_predicate)
-            .then(alt.value(3))
-            .otherwise(alt.value(0)),
         )
         .add_params(selection)
     )
 
-    text = base.mark_text(
-        fontSize=BASE_AXIS_TITLE_FONT_SIZE
-        * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
-        font="sans-serif",
-    ).encode(text=alt.Text("metric:Q", format=",.1f"))
+    if show_values:
+        text = base.mark_text(
+            fontSize=BASE_AXIS_TITLE_FONT_SIZE
+            * np.exp(-FONT_SIZE_DECAY_FACTOR * mark_scaler),
+            font="monospace",
+        ).encode(text=alt.Text(f"{snake_name}.mean:Q", format=".0f"))
 
-    return heatmap + text
+        return heatmap + text
+    return heatmap.resolve_scale(color="independent")
 
 
 def plot_atas(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid ATA"],
+    hide_samples: bool = False,
     ncols: int | None = None,
     width: int = 400,
     height: int = 200,
@@ -486,7 +734,7 @@ def plot_atas(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_atas,
             metric_dict=metric_dict,
             title=main_title,
@@ -505,28 +753,20 @@ def plot_atas(
 def _plot_atas(
     triangle: Triangle, metric: MetricFunc, name: str, title: alt.Title
 ) -> alt.Chart:
-    metric_data = alt.Data(
-        values=[
-            {
-                **_core_plot_data(cell),
-                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                "Field": name,
-            }
-            for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-        ]
-    )
+    data = alt.Data(values=build_plot_data(triangle, {name: metric}, flat=True))
+    snake_name = _to_snake_case(name)
 
     tooltip = [
         alt.Tooltip("period_start:T", title="Period Start"),
         alt.Tooltip("period_end:T", title="Period End"),
         alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
         alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-        alt.Tooltip("metric:Q", title=name, format=".2f"),
+        alt.Tooltip(f"{snake_name}_tooltip:N", title="Field"),
     ]
 
-    base = alt.Chart(metric_data, title=title).encode(
+    base = alt.Chart(data, title=title).encode(
         x=alt.X("dev_lag:Q").title("Dev Lag (months)").scale(padding=10),
-        y=alt.X("metric:Q").title(name).scale(zero=False, padding=10),
+        y=alt.Y(f"{snake_name}_mean:Q").title(name).scale(zero=False, padding=10),
         tooltip=tooltip,
     )
 
@@ -538,13 +778,20 @@ def _plot_atas(
         rule=alt.MarkConfig(stroke="black"),
         box=alt.MarkConfig(stroke="black"),
     )
+    errors = base.mark_rule(thickness=1).encode(
+        y=alt.Y(f"{snake_name}_:Q").axis(title=name),
+        y2=alt.Y2(f"{snake_name}_q95:Q"),
+        color=alt.value("black"),
+        opacity=alt.value(0.7),
+    )
 
-    return (points + boxplot).interactive()
+    return (points + errors + boxplot).interactive()
 
 
 def plot_growth_curve(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments", "spaghetti"] = "ribbon",
     n_lines: int = 100,
@@ -564,7 +811,7 @@ def plot_growth_curve(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_growth_curve,
             metric_dict=metric_dict,
             uncertainty=uncertainty,
@@ -595,42 +842,22 @@ def _plot_growth_curve(
     n_lines: int = 100,
     seed: int | None = None,
 ) -> alt.Chart:
+    snake_name = _to_snake_case(name)
+
     if uncertainty_type == "spaghetti":
         triangle_thinned = triangle.thin(num_samples=n_lines)
-        spaghetti_data = alt.Data(
-            values=[
-                {
-                    **_core_plot_data(cell),
-                    "metric_sample": value,
-                    "iteration": i,
-                }
-                for cell, prev_cell in zip(
-                    triangle_thinned, [None, *triangle_thinned[:-1]]
-                )
-                for i, value in enumerate(
-                    _scalar_or_array_to_iter(
-                        _safe_apply_metric(cell, prev_cell, metric)
-                    )
-                )
-            ]
+        data = alt.Data(
+            values=build_plot_data(
+                triangle_thinned, metric_dict={name: metric}, keep_samples=True
+            )
         )
+    else:
+        data = alt.Data(values=build_plot_data(triangle, metric_dict={name: metric}))
 
-    metric_data = alt.Data(
-        values=[
-            {
-                **_core_plot_data(cell),
-                "last_lag": max(
-                    triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                ),
-                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-            }
-            for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-        ]
-    )
-
+    period_start_dtype = "Q" if len(triangle.periods) > 10 else "N"
     color = (
-        alt.Color("yearmonth(period_start):Q")
-        .scale(range=MANAGUA_VALS)
+        alt.Color(f"yearmonth(period_start):{period_start_dtype}")
+        .scale(scheme="blueorange", reverse=True)
         .legend(title="Period Start")
     )
     color_none = color.legend(None)
@@ -644,17 +871,19 @@ def _plot_growth_curve(
         alt.when(selector).then(alt.OpacityValue(1)).otherwise(alt.OpacityValue(0.2))
     )
 
-    base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X("dev_lag:Q", axis=alt.Axis(grid=True, labelAngle=0)).title(
-            "Dev Lag (months)"
-        ),
-        y=alt.X("metric:Q").title(name),
+    base = alt.Chart(data, title=title).encode(
+        x=alt.X(
+            "dev_lag:Q",
+            axis=alt.Axis(grid=True, labelAngle=0),
+            scale=alt.Scale(padding=5),
+        ).title("Dev Lag (months)"),
+        y=alt.Y(f"{snake_name}.mean:Q", axis=alt.Axis(format=".2s")).title(name),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
             alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-            alt.Tooltip("metric:Q", format=",.1f", title=name),
+            alt.Tooltip(f"{snake_name}.tooltip:N", title="Field"),
         ],
     )
 
@@ -684,29 +913,31 @@ def _plot_growth_curve(
         errors = base.mark_area(
             opacity=0.5,
         ).encode(
-            y=alt.Y("metric_lower_ci:Q"),
-            y2=alt.Y2("metric_upper_ci:Q"),
+            y=alt.Y(f"{snake_name}.q5:Q"),
+            y2=alt.Y2(f"{snake_name}.q95:Q"),
             color=color_conditional_no_legend,
             opacity=ribbon_opacity_conditional,
         )
     elif uncertainty and uncertainty_type == "segments":
-        errors = base.mark_errorbar(thickness=5).encode(
-            y=alt.Y("metric_lower_ci:Q").axis(title=name),
-            y2=alt.Y2("metric_upper_ci:Q"),
+        errors = base.mark_rule(thickness=5).encode(
+            y=alt.Y(f"{snake_name}.q5:Q").title(name),
+            y2=alt.Y2(f"{snake_name}.q95:Q"),
             color=color_conditional_no_legend,
             opacity=opacity_conditional,
         )
     elif uncertainty and uncertainty_type == "spaghetti":
-        errors = (
-            alt.Chart(spaghetti_data)
-            .mark_line(opacity=0.2)
-            .encode(
-                x=alt.X("dev_lag:Q"),
-                y=alt.X("metric_sample:Q"),
-                detail="iteration:N",
-                color=color_conditional_no_legend,
+        errors = alt.LayerChart()
+        for i in range(n_lines):
+            errors += (
+                alt.Chart(data)
+                .mark_line(opacity=0.2)
+                .encode(
+                    x=alt.X("dev_lag:Q"),
+                    y=alt.Y(f"{snake_name}.metric[{i}]:Q"),
+                    detail=f"{i}:N",
+                    color=color_conditional_no_legend,
+                )
             )
-        )
     else:
         errors = alt.LayerChart()
 
@@ -725,6 +956,7 @@ def _plot_growth_curve(
 def plot_sunset(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Incremental ATA"],
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -742,7 +974,7 @@ def plot_sunset(
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_sunset,
             metric_dict=metric_dict,
             uncertainty=uncertainty,
@@ -769,20 +1001,13 @@ def _plot_sunset(
     uncertainty: bool,
     uncertainty_type: Literal["ribbon", "segments"],
 ) -> alt.Chart:
-    metric_data = alt.Data(
-        values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    **_calculate_field_summary(cell, prev_cell, metric, name),
-                }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-            ]
-        ]
-    )
+    snake_name = _to_snake_case(name)
+    data = alt.Data(values=build_plot_data(triangle, {name: metric}, flat=True))
 
     color = (
-        alt.Color("dev_lag:Q").scale(range=MANAGUA_VALS).legend(title="Development Lag")
+        alt.Color("dev_lag:Q")
+        .scale(scheme="blueorange")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -795,17 +1020,17 @@ def _plot_sunset(
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
     )
 
-    base = alt.Chart(metric_data, title=title).encode(
+    base = alt.Chart(data, title=title).encode(
         x=alt.X(
             "yearmonth(evaluation_date):O", axis=alt.Axis(grid=True, labelAngle=0)
         ).title("Calendar Year"),
-        y=alt.X(f"{name}:Q").title(name).scale(type="pow", exponent=0.3),
+        y=alt.X(f"{snake_name}_mean:Q").title(name).scale(type="pow", exponent=0.3),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
             alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-            alt.Tooltip(f"{name}:Q", format=",.1f", title=name),
+            alt.Tooltip(f"{snake_name}_tooltip:N", title="Field"),
         ],
     )
 
@@ -816,7 +1041,7 @@ def _plot_sunset(
     )
     regression = (
         base.transform_loess(
-            "evaluation_date", f"{name}", groupby=["dev_lag"], bandwidth=0.6
+            "evaluation_date", f"{snake_name}_mean", groupby=["dev_lag"], bandwidth=0.6
         )
         .mark_line(strokeWidth=2)
         .encode(color=color_conditional_no_legend, opacity=opacity_conditional)
@@ -829,15 +1054,15 @@ def _plot_sunset(
             .otherwise(alt.OpacityValue(0.2))
         )
         errors = base.mark_area().encode(
-            y=alt.Y(f"{name}_lower_ci:Q").axis(title=name),
-            y2=alt.Y2(f"{name}_upper_ci:Q"),
+            y=alt.Y(f"{snake_name}_q5:Q").axis(title=name),
+            y2=alt.Y2(f"{snake_name}_q95:Q"),
             color=color_conditional_no_legend,
             opacity=ribbon_conditional,
         )
     elif uncertainty and uncertainty_type == "segments":
-        errors = base.mark_errorbar(thickness=5).encode(
-            y=alt.Y(f"{name}_lower_ci:Q").axis(title=name),
-            y2=alt.Y2(f"{name}_upper_ci:Q"),
+        errors = base.mark_rule(thickness=5).encode(
+            y=alt.Y(f"{snake_name}_q5:Q").axis(title=name),
+            y2=alt.Y2(f"{snake_name}_q95:Q"),
             color=color_conditional_no_legend,
             opacity=opacity_conditional,
         )
@@ -854,6 +1079,7 @@ def _plot_sunset(
 def plot_mountain(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = ["Paid Loss Ratio"],
+    hide_samples: bool = False,
     uncertainty: bool = True,
     uncertainty_type: Literal["ribbon", "segments"] = "ribbon",
     width: int = 400,
@@ -873,7 +1099,7 @@ def plot_mountain(
     legend_direction = "horizontal" if highlight_ultimates else "vertical"
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_mountain,
             metric_dict=metric_dict,
             uncertainty=uncertainty,
@@ -902,42 +1128,21 @@ def _plot_mountain(
     uncertainty_type: Literal["ribbon", "segments"],
     highlight_ultimates: bool = True,
 ) -> alt.Chart:
-    metric_triangle = (
-        triangle.clip(max_dev=triangle.dev_lags()[-2])
-        if highlight_ultimates
-        else triangle
-    )
-    metric_data = alt.Data(
-        values=[
-            {
-                **_core_plot_data(cell),
-                "last_lag": max(
-                    triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                ),
-                **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                "Field": name,
-            }
-            for cell, prev_cell in zip(metric_triangle, [None, *metric_triangle[:-1]])
-        ]
-    )
+    snake_name = _to_snake_case(name)
 
     if highlight_ultimates:
-        ultimate_triangle = triangle.right_edge
+        metric_triangle = _remove_triangle_samples(triangle)
+        data = alt.Data(values=build_plot_data(metric_triangle, {name: metric}))
         ultimate_data = alt.Data(
-            values=[
-                {
-                    **_core_plot_data(cell),
-                    **_calculate_field_summary(cell, prev_cell, metric, "metric"),
-                    "Field": name,
-                }
-                for cell, prev_cell in zip(
-                    ultimate_triangle, [None, *ultimate_triangle[:-1]]
-                )
-            ]
+            values=build_plot_data(triangle.right_edge, {name: metric})
         )
+    else:
+        data = alt.Data(values=build_plot_data(triangle, {name: metric}))
 
     color = (
-        alt.Color("dev_lag:Q").scale(range=MANAGUA_VALS).legend(title="Development Lag")
+        alt.Color("dev_lag:Q")
+        .scale(scheme="blueorange")
+        .legend(title="Development Lag")
     )
     color_none = color.legend(None)
 
@@ -951,14 +1156,14 @@ def _plot_mountain(
         alt.Tooltip("period_end:T", title="Period End"),
         alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
         alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-        alt.Tooltip("metric:Q", format=",.1f", title=name),
+        alt.Tooltip(f"{snake_name}.tooltip:N", title="Field"),
     ]
 
-    base = alt.Chart(metric_data, title=title).encode(
+    base = alt.Chart(data, title=title).encode(
         x=alt.X(
             "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
         ).title("Period Start"),
-        y=alt.X("metric:Q").title(name),
+        y=alt.Y(f"{snake_name}.mean:Q", axis=alt.Axis(format=".2s")).title(name),
         tooltip=tooltip,
     )
 
@@ -975,15 +1180,15 @@ def _plot_mountain(
             .otherwise(alt.OpacityValue(0.2))
         )
         errors = base.mark_area().encode(
-            y=alt.Y("metric_lower_ci:Q"),
-            y2=alt.Y2("metric_upper_ci:Q"),
+            y=alt.Y(f"{snake_name}.q5:Q"),
+            y2=alt.Y2(f"{snake_name}.q95:Q"),
             color=color_none,
             opacity=ribbon_conditional,
         )
     elif uncertainty and uncertainty_type == "segments":
         errors = base.mark_errorbar(thickness=5).encode(
-            y=alt.Y("metric_lower_ci:Q").axis(title=name),
-            y2=alt.Y2("metric_upper_ci:Q"),
+            y=alt.Y(f"{snake_name}.q5:Q").title(name),
+            y2=alt.Y2(f"{snake_name}.q95:Q"),
             color=color_none,
             opacity=opacity_conditional,
         )
@@ -996,28 +1201,28 @@ def _plot_mountain(
             x=alt.X(
                 "yearmonth(period_start):O", axis=alt.Axis(grid=True, labelAngle=0)
             ).title("Period Start"),
-            y=alt.X("metric:Q").title(name),
+            y=alt.X(f"{snake_name}.mean:Q").title(name),
             tooltip=tooltip,
             order=alt.value(1),
         )
         ultimates = ultimate_base.mark_line().encode(
             color=ultimate_color.legend(title="Ultimate Lag")
         )
-        ultimates += ultimate_base.mark_point(filled=True).encode(
+        ultimates += ultimate_base.mark_point(filled=True, size=100).encode(
             color=ultimate_color,
         )
 
         if uncertainty and uncertainty_type == "ribbon":
             ultimates += ultimate_base.mark_area().encode(
-                y=alt.Y("metric_lower_ci:Q"),
-                y2=alt.Y2("metric_upper_ci:Q"),
+                y=alt.Y(f"{snake_name}.q5:Q"),
+                y2=alt.Y2(f"{snake_name}.q95:Q"),
                 color=ultimate_color,
                 opacity=ribbon_conditional,
             )
         if uncertainty and uncertainty_type == "segments":
-            ultimates += ultimate_base.mark_errorbar(thickness=5).encode(
-                y=alt.Y("metric_lower_ci:Q").axis(title=name),
-                y2=alt.Y2("metric_upper_ci:Q"),
+            ultimates += ultimate_base.mark_rule(thickness=5).encode(
+                y=alt.Y(f"{snake_name}.q5:Q").title(name),
+                y2=alt.Y2(f"{snake_name}.q95:Q"),
                 color=ultimate_color,
                 opacity=opacity_conditional,
             )
@@ -1041,11 +1246,13 @@ def plot_ballistic(
         * cell["reported_loss"]
         / cell["earned_premium"],
     },
+    hide_samples: bool = False,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
     facet_titles: list[str] | None = None,
+    show_points: bool = True,
 ) -> alt.Chart:
     """Plot triangle metrics as a ballistic."""
     main_title = alt.Title(
@@ -1054,7 +1261,7 @@ def plot_ballistic(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_ballistic,
         axis_metrics=axis_metrics,
         title=main_title,
@@ -1064,6 +1271,7 @@ def plot_ballistic(
         height=height,
         mark_scaler=max_cols,
         ncols=max_cols,
+        show_points=show_points,
     ).configure_axis(**_compute_font_sizes(max_cols))
     return fig
 
@@ -1074,30 +1282,22 @@ def _plot_ballistic(
     title: alt.Title,
     mark_scaler: int,
     uncertainty: bool,
+    show_points: bool,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
+    snake_name_x = _to_snake_case(name_x)
+    snake_name_y = _to_snake_case(name_y)
 
-    metric_data = alt.Data(
-        values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    "last_lag": max(
-                        triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                    ),
-                    **_calculate_field_summary(cell, prev_cell, func_x, name_x),
-                    **_calculate_field_summary(cell, prev_cell, func_y, name_y),
-                }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-            ]
-        ]
-    )
+    data = alt.Data(values=build_plot_data(triangle, axis_metrics))
 
-    color = (
-        alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
-        .legend(title="Development Lag (months)")
-    )
+    color_var = "dev_lag" if show_points else "yearmonth(period_start)"
+    color_title = "Development Lags (months)" if show_points else "Period Start"
+    if show_points:
+        color_dtype = "Q" if len(triangle.dev_lags()) > 10 else "N"
+    else:
+        color_dtype = "Q" if len(triangle.periods) > 10 else "N"
+
+    color = alt.Color(f"{color_var}:{color_dtype}").legend(title=color_title)
     color_none = color.legend(None)
 
     selector = alt.selection_point(fields=["period_start"])
@@ -1109,34 +1309,38 @@ def _plot_ballistic(
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
     )
 
-    base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q").title(name_x).axis(grid=True),
-        y=alt.X(f"{name_y}:Q").title(name_y).axis(grid=True),
+    base = alt.Chart(data, title=title).encode(
+        x=alt.X(f"{snake_name_x}.mean:Q").title(name_x).axis(grid=True),
+        y=alt.X(f"{snake_name_y}.mean:Q").title(name_y).axis(grid=True),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
             alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-            alt.Tooltip(f"{name_x}:Q", format=".1f"),
-            alt.Tooltip(f"{name_y}:Q", format=".1f"),
+            alt.Tooltip(f"{snake_name_x}.tooltip:N", title="Field X"),
+            alt.Tooltip(f"{snake_name_y}.tooltip:N", title="Field Y"),
         ],
     )
 
     diagonal = (
-        alt.Chart(metric_data)
+        alt.Chart(data)
         .mark_line(color="black", strokeDash=[5, 5])
         .encode(
-            x=f"{name_x}:Q",
-            y=f"{name_x}:Q",
+            x=f"{snake_name_x}.mean:Q",
+            y=f"{snake_name_x}.mean:Q",
         )
     )
 
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke=None).encode(
-        color=color_conditional, opacity=opacity_conditional
-    )
+    if show_points:
+        points = base.mark_point(
+            filled=True, size=100 / mark_scaler, stroke=None
+        ).encode(color=color_conditional, opacity=opacity_conditional)
+    else:
+        points = alt.LayerChart()
+
     ultimates = (
         base.mark_point(size=200 / mark_scaler, filled=True, stroke=None)
         .encode(color=color_conditional, opacity=opacity_conditional)
@@ -1144,10 +1348,14 @@ def _plot_ballistic(
     )
 
     if uncertainty:
-        errors = base.mark_errorbar(thickness=5).encode(
-            y=alt.Y(f"{name_y}_lower_ci:Q").axis(title=name_y),
-            y2=alt.Y2(f"{name_y}_upper_ci:Q"),
-            color=color_conditional_no_legend,
+        errors = (
+            base.mark_rule(thickness=5)
+            .encode(
+                y=alt.Y(f"{snake_name_y}.q5:Q").axis(title=name_y),
+                y2=alt.Y2(f"{snake_name_y}.q95:Q"),
+                color=alt.ColorValue("black"),
+            )
+            .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
         )
     else:
         errors = alt.LayerChart()
@@ -1167,12 +1375,14 @@ def plot_broom(
         * cell["paid_loss"]
         / cell["earned_premium"],
     },
+    hide_samples: bool = False,
     rule: int | None = 1,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
     facet_titles: list[str] | None = None,
+    show_points: bool = True,
 ) -> alt.Chart:
     """Plot triangle metrics as a broom."""
     main_title = alt.Title(
@@ -1181,7 +1391,7 @@ def plot_broom(
     n_slices = len(triangle.slices)
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_broom,
         axis_metrics=axis_metrics,
         title=main_title,
@@ -1192,6 +1402,7 @@ def plot_broom(
         height=height,
         mark_scaler=max_cols,
         ncols=max_cols,
+        show_points=show_points,
     ).configure_axis(**_compute_font_sizes(max_cols))
     return fig.interactive()
 
@@ -1203,30 +1414,22 @@ def _plot_broom(
     mark_scaler: int,
     uncertainty: bool,
     rule: int | None,
+    show_points: bool,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
+    snake_name_x = _to_snake_case(name_x)
+    snake_name_y = _to_snake_case(name_y)
 
-    metric_data = alt.Data(
-        values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    "last_lag": max(
-                        triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                    ),
-                    **_calculate_field_summary(cell, prev_cell, func_x, name_x),
-                    **_calculate_field_summary(cell, prev_cell, func_y, name_y),
-                }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-            ]
-        ]
-    )
+    data = alt.Data(values=build_plot_data(triangle, axis_metrics))
 
-    color = (
-        alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
-        .legend(title="Development Lag (months)")
-    )
+    color_var = "dev_lag" if show_points else "yearmonth(period_start)"
+    color_title = "Development Lags (months)" if show_points else "Period Start"
+    if show_points:
+        color_dtype = "Q" if len(triangle.dev_lags()) > 10 else "N"
+    else:
+        color_dtype = "Q" if len(triangle.periods) > 10 else "N"
+
+    color = alt.Color(f"{color_var}:{color_dtype}").legend(title=color_title)
     color_none = color.legend(None)
 
     selector = alt.selection_point(fields=["period_start"])
@@ -1238,16 +1441,16 @@ def _plot_broom(
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
     )
 
-    base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q").scale(padding=10, nice=False).title(name_x),
-        y=alt.Y(f"{name_y}:Q").title(name_y),
+    base = alt.Chart(data, title=title).encode(
+        x=alt.X(f"{snake_name_x}.mean:Q").scale(padding=10, nice=False).title(name_x),
+        y=alt.Y(f"{snake_name_y}.mean:Q").title(name_y),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
             alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-            alt.Tooltip(f"{name_x}:Q", format=".1f"),
-            alt.Tooltip(f"{name_y}:Q", format=".1f"),
+            alt.Tooltip(f"{snake_name_x}.tooltip:N", title="Field X"),
+            alt.Tooltip(f"{snake_name_y}.tooltip:N", title="Field Y"),
         ],
     )
 
@@ -1260,11 +1463,17 @@ def _plot_broom(
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke=None).encode(
-        color=color_conditional,
-        opacity=opacity_conditional,
-        strokeOpacity=opacity_conditional,
-    )
+    if show_points:
+        points = base.mark_point(
+            filled=True, size=100 / mark_scaler, stroke=None
+        ).encode(
+            color=color_conditional,
+            opacity=opacity_conditional,
+            strokeOpacity=opacity_conditional,
+        )
+    else:
+        points = alt.LayerChart()
+
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(
@@ -1276,10 +1485,14 @@ def _plot_broom(
     )
 
     if uncertainty:
-        errors = base.mark_errorbar(thickness=5).encode(
-            x=alt.X(f"{name_x}_lower_ci:Q").axis(title=name_x),
-            x2=alt.X2(f"{name_x}_upper_ci:Q"),
-            color=color_conditional_no_legend,
+        errors = (
+            base.mark_rule(thickness=5)
+            .encode(
+                x=alt.X(f"{snake_name_x}.q5:Q").axis(title=name_x),
+                x2=alt.X2(f"{snake_name_x}.q95:Q"),
+                color=alt.ColorValue("black"),
+            )
+            .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
         )
     else:
         errors = alt.LayerChart()
@@ -1299,11 +1512,13 @@ def plot_drip(
         * cell["open_claims"]
         / cell["reported_claims"],
     },
+    hide_samples: bool = False,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
     facet_titles: list[str] | None = None,
+    show_points: bool = True,
 ) -> alt.Chart:
     """Plot triangle metrics as a drip."""
     main_title = alt.Title(
@@ -1313,7 +1528,7 @@ def plot_drip(
     max_cols = ncols or _determine_facet_cols(n_slices)
     fig = (
         _build_metric_slice_charts(
-            triangle,
+            _remove_triangle_samples(triangle) if hide_samples else triangle,
             plot_func=_plot_drip,
             axis_metrics=axis_metrics,
             title=main_title,
@@ -1323,6 +1538,7 @@ def plot_drip(
             height=height,
             mark_scaler=max_cols,
             ncols=max_cols,
+            show_points=show_points,
         )
         .configure_axis(**_compute_font_sizes(max_cols))
         .resolve_scale(color="independent")
@@ -1336,30 +1552,22 @@ def _plot_drip(
     title: alt.Title,
     uncertainty: bool,
     mark_scaler: int,
+    show_points: bool,
 ) -> alt.Chart:
     (name_x, name_y), (func_x, func_y) = zip(*axis_metrics.items())
+    snake_name_x = _to_snake_case(name_x)
+    snake_name_y = _to_snake_case(name_y)
 
-    metric_data = alt.Data(
-        values=[
-            *[
-                {
-                    **_core_plot_data(cell),
-                    "last_lag": max(
-                        triangle.filter(lambda ob: ob.period == cell.period).dev_lags()
-                    ),
-                    **_calculate_field_summary(cell, prev_cell, func_x, name_x),
-                    **_calculate_field_summary(cell, prev_cell, func_y, name_y),
-                }
-                for cell, prev_cell in zip(triangle, [None, *triangle[:-1]])
-            ]
-        ]
-    )
+    data = alt.Data(values=build_plot_data(triangle, axis_metrics))
 
-    color = (
-        alt.Color("dev_lag:Q")
-        .scale(range=MANAGUA_VALS)
-        .legend(title="Development Lag (months)")
-    )
+    color_var = "dev_lag" if show_points else "yearmonth(period_start)"
+    color_title = "Development Lags (months)" if show_points else "Period Start"
+    if show_points:
+        color_dtype = "Q" if len(triangle.dev_lags()) > 10 else "N"
+    else:
+        color_dtype = "Q" if len(triangle.periods) > 10 else "N"
+
+    color = alt.Color(f"{color_var}:{color_dtype}").legend(title=color_title)
     color_none = color.legend(None)
 
     selector = alt.selection_point(fields=["period_start"])
@@ -1371,25 +1579,30 @@ def _plot_drip(
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
     )
 
-    base = alt.Chart(metric_data, title=title).encode(
-        x=alt.X(f"{name_x}:Q").title(name_x, padding=10),
-        y=alt.Y(f"{name_y}:Q").title(name_y).scale(nice=False, padding=10),
+    base = alt.Chart(data, title=title).encode(
+        x=alt.X(f"{snake_name_x}.mean:Q").title(name_x, padding=10),
+        y=alt.Y(f"{snake_name_y}.mean:Q").title(name_y).scale(nice=False, padding=10),
         tooltip=[
             alt.Tooltip("period_start:T", title="Period Start"),
             alt.Tooltip("period_end:T", title="Period End"),
             alt.Tooltip("evaluation_date:T", title="Evaluation Date"),
             alt.Tooltip("dev_lag:Q", title="Dev Lag (months)"),
-            alt.Tooltip(f"{name_x}:Q", format=".1f"),
-            alt.Tooltip(f"{name_y}:Q", format=".1f"),
+            alt.Tooltip(f"{snake_name_x}.tooltip:N", title="Field X"),
+            alt.Tooltip(f"{snake_name_y}.tooltip:N", title="Field Y"),
         ],
     )
 
     lines = base.mark_line(color="black", strokeWidth=0.5).encode(
         detail="period_start:N", opacity=opacity_conditional
     )
-    points = base.mark_point(filled=True, size=100 / mark_scaler, stroke=None).encode(
-        color=color_conditional, opacity=opacity_conditional
-    )
+
+    if show_points:
+        points = base.mark_point(
+            filled=True, size=100 / mark_scaler, stroke=None
+        ).encode(color=color_conditional, opacity=opacity_conditional)
+    else:
+        points = alt.LayerChart()
+
     ultimates = (
         base.mark_point(size=300 / mark_scaler, filled=True, stroke=None)
         .encode(color=color_conditional, opacity=opacity_conditional)
@@ -1397,10 +1610,14 @@ def _plot_drip(
     )
 
     if uncertainty:
-        errors = base.mark_errorbar(thickness=5).encode(
-            y=alt.Y(f"{name_y}_lower_ci:Q").title(name_y),
-            y2=alt.Y2(f"{name_y}_upper_ci:Q"),
-            color=color_conditional_no_legend,
+        errors = (
+            base.mark_rule(thickness=5)
+            .encode(
+                y=alt.Y(f"{snake_name_y}.q5:Q").title(name_y),
+                y2=alt.Y2(f"{snake_name_y}.q95:Q"),
+                color=alt.ColorValue("black"),
+            )
+            .transform_filter(alt.datum.last_lag == alt.datum.dev_lag)
         )
     else:
         errors = alt.LayerChart()
@@ -1422,20 +1639,32 @@ def plot_hose(
             - prev_cell["paid_loss"] / prev_cell["earned_premium"]
         ),
     },
+    hide_samples: bool = False,
     uncertainty: bool = True,
     width: int = 400,
     height: int = 300,
     ncols: int | None = None,
     facet_titles: list[str] | None = None,
+    show_points: bool = True,
 ) -> alt.Chart:
     return plot_drip(
-        triangle, axis_metrics, uncertainty, width, height, ncols, facet_titles
+        triangle,
+        axis_metrics,
+        hide_samples,
+        uncertainty,
+        width,
+        height,
+        ncols,
+        facet_titles,
+        show_points=show_points,
     ).properties(title="Triangle Hose Plot")
 
 
 def plot_histogram(
     triangle: Triangle,
     metric_spec: MetricFuncSpec = "Paid Loss",
+    right_edge: bool = True,
+    hide_samples: bool = False,
     width: int = 400,
     height: int = 200,
     ncols: int | None = None,
@@ -1447,10 +1676,11 @@ def plot_histogram(
     n_metrics = len(metric_spec)
     max_cols = ncols or _determine_facet_cols(n_slices * n_metrics)
     fig = _build_metric_slice_charts(
-        triangle,
+        _remove_triangle_samples(triangle) if hide_samples else triangle,
         plot_func=_plot_histogram,
         metric_dict=metric_dict,
         title=main_title,
+        right_edge=right_edge,
         facet_titles=facet_titles,
         width=width,
         height=height,
@@ -1463,8 +1693,12 @@ def _plot_histogram(
     triangle: Triangle,
     metric: MetricFunc,
     name: str,
+    right_edge: bool,
     title: alt.Title,
 ) -> alt.Chart:
+    if right_edge:
+        triangle = triangle.right_edge
+
     metric_data = alt.Data(
         values=[
             {
@@ -1480,7 +1714,9 @@ def _plot_histogram(
         alt.Chart(metric_data, title=title)
         .mark_bar()
         .encode(
-            x=alt.X(f"{name}:Q").bin({"maxbins": 50}).title(name),
+            x=alt.X(f"{name}:Q", axis=alt.Axis(format=".2s"))
+            .bin({"maxbins": 50})
+            .title(name),
             y=alt.Y("count()").title("Count"),
         )
     )
@@ -1543,47 +1779,32 @@ def _core_plot_data(cell: Cell) -> dict[str, Any]:
 def _calculate_field_summary(
     cell: Cell,
     prev_cell: Cell | None,
+    next_cell: Cell | None,
     func: MetricFunc,
     name: str,
-    probs: tuple[float, float] = (0.05, 0.95),
-):
-    metric = _safe_apply_metric(cell, prev_cell, func)
+    keep_samples: bool = False,
+    n_bins: int = 40,
+    n_samples: int = 100,
+) -> FieldSummary:
+    metric = _safe_apply_metric(cell, prev_cell, next_cell, func)
 
-    if metric is None:
-        return {
-            f"{name}": None,
-            f"{name}_sd": None,
-            f"{name}_lower_ci": None,
-            f"{name}_upper_ci": None,
-        }
+    if metric is None or np.isscalar(metric) or len(metric) == 1:
+        return FieldSummary(name, metric, seed=SEED)
 
-    if np.isscalar(metric) or len(metric) == 1:
-        return {
-            f"{name}": metric,
-            f"{name}_sd": 0,
-            f"{name}_lower_ci": None,
-            f"{name}_upper_ci": None,
-        }
+    if all([m == metric[0] for m in metric]):
+        warn(f"Metric samples for {name} in {cell.metadata, cell.coordinates} are all equal. Building plot data as if it is a constant.")
+        return FieldSummary(name, metric, seed=SEED)
 
-    point = np.mean(metric)
-    lower, upper = np.quantile(metric, probs)
-    return {
-        f"{name}": point,
-        f"{name}_sd": metric.std(),
-        f"{name}_lower_ci": lower,
-        f"{name}_upper_ci": upper,
-    }
+    return FieldSummary.from_metric(name, metric, keep_samples=keep_samples, n_bins=n_bins, n_samples=n_samples)
 
 
-def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, func: MetricFunc):
+def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, next_cell: Cell | None, func: MetricFunc):
     try:
-        if prev_cell.period != cell.period:
-            raise IndexError
-        return func(cell, prev_cell)
+        return func(cell, prev_cell, next_cell)
     except Exception:
         try:
             return func(cell)
-        except Exception:
+        except:
             return None
 
 
@@ -1612,39 +1833,6 @@ def _concat_charts(charts: list[alt.Chart], ncols: int, **kwargs) -> alt.Chart:
 def _determine_facet_cols(n: int):
     """This is a replication of grDevices::n2mfrow in R"""
     return int(min(n, np.ceil(n / np.sqrt(n))))
-
-
-_MANAGUA_RAW = [
-    [1, 0.81263, 0.40424],
-    [0.92706, 0.69585, 0.36536],
-    [0.85597, 0.58963, 0.32987],
-    [0.78516, 0.4928, 0.29757],
-    [0.71247, 0.40508, 0.26891],
-    [0.633, 0.32425, 0.24442],
-    [0.54243, 0.24891, 0.22689],
-    [0.44962, 0.18873, 0.22534],
-    [0.37143, 0.15932, 0.25403],
-    [0.32066, 0.17283, 0.32465],
-    [0.29878, 0.22656, 0.42904],
-    [0.3009, 0.30548, 0.54191],
-    [0.32092, 0.39385, 0.64188],
-    [0.35064, 0.48323, 0.72305],
-    [0.38579, 0.57766, 0.79429],
-    [0.4241, 0.67996, 0.86256],
-    [0.46377, 0.78936, 0.93036],
-    [0.50411, 0.90708, 0.99978],
-]
-
-
-def _float_to_rgb(color_float: tuple[float, float, float]) -> str:
-    rf, gf, bf = color_float
-    r = round(rf * 255)
-    g = round(gf * 255)
-    b = round(bf * 255)
-    return f"#{r:02x}{g:02x}{b:02x}"
-
-
-MANAGUA_VALS = [_float_to_rgb(val) for val in _MANAGUA_RAW]
 
 
 def _slice_label(slice_tri: Triangle, base_tri: Triangle):

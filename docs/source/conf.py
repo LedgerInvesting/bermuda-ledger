@@ -21,8 +21,8 @@ import bermuda
 # -- Project information -----------------------------------------------------
 
 project = "Bermuda"
-copyright = f"{date.today().year}, Ledger Investing, Inc."
-author = "Ledger Investing, Inc."
+copyright = f"{date.today().year}, Korra, LLC."
+author = "Korra, LLC."
 version = bermuda.__version__
 
 # -- General configuration ---------------------------------------------------
@@ -62,7 +62,7 @@ exclude_patterns = ["_build", "**.ipynb_checkpoints"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_wagtail_theme"  # "sphinx_rtd_theme"
-html_logo = "logo.png"
+html_logo = "smbol.png"
 html_theme_options = dict(
     project_name="Bermuda",
     logo=html_logo,

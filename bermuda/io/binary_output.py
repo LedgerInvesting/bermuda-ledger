@@ -6,7 +6,6 @@ import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-import awswrangler as wr
 import numpy as np
 
 from ..base import Cell, CumulativeCell, IncrementalCell, Metadata, MetadataValue
@@ -99,9 +98,11 @@ def triangle_to_binary(
 
     # Write the triangle to the appropriate kind of file
     if filename.startswith("s3:"):
+        import awswrangler as wr
+
         with NamedTemporaryFile() as temp:
             _write_binary(triangle, temp.name, compress)
-            wr.s3.upload(local_file=temp.name, path=filename)
+            wr.s3.upload(local_file=temp.name, path=filename, use_threads=True)
     else:
         _write_binary(triangle, filepath, compress)
 

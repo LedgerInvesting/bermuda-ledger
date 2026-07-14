@@ -1,6 +1,5 @@
 from typing import Any
 
-import awswrangler as wr
 import numpy as np
 import pandas as pd
 import toolz as tlz
@@ -28,6 +27,8 @@ def triangle_to_wide_csv(tri: Triangle[Cell], filename: str) -> None:
     df = triangle_to_wide_data_frame(tri)
     # noinspection PyTypeChecker
     if filename.startswith("s3://"):
+        import awswrangler as wr
+
         wr.s3.to_csv(df, filename, index=False)
     else:
         df.to_csv(filename, index=False)
@@ -45,6 +46,8 @@ def triangle_to_long_csv(tri: Triangle[Cell], filename: str) -> None:
     df = triangle_to_long_data_frame(tri)
     # noinspection PyTypeChecker
     if filename.startswith("s3://"):
+        import awswrangler as wr
+
         wr.s3.to_csv(df, filename, index=False)
     else:
         df.to_csv(filename, index=False)
