@@ -65,6 +65,9 @@ COMMON_METRIC_DICT: MetricFuncDict = {
     "Reported ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"],
     "Paid Incremental ATA": lambda cell, _, next_cell: next_cell["paid_loss"] / cell["paid_loss"] - 1,
     "Reported Incremental ATA": lambda cell, _, next_cell: next_cell["reported_loss"] / cell["reported_loss"] - 1,
+    "Open Claims": lambda cell: cell["open_claims"],
+    "Reported Claims": lambda cell: cell["reported_claims"],
+    "Closed with Pay Claims": lambda cell: cell["closed_with_pay_claims"],
 }
 
 SEED = 1234
