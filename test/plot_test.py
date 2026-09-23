@@ -3,8 +3,7 @@ import datetime
 import numpy as np
 
 from bermuda import Triangle, meyers_tri, Metadata
-
-from bermuda.plot import _safe_apply_metric, build_plot_data
+from bermuda.plot import _safe_apply_metric, build_plot_data, COMMON_METRIC_DICT
 
 
 def test_plot_data_completeness():
@@ -408,9 +407,16 @@ def test_plot_metric_data_functions():
 
 def test_build_plot_data():
     test_predictions = meyers_tri.derive_fields(
+        incurred_loss=lambda cell: np.random.normal(cell["reported_loss"], 1e5, 10_000),
         reported_loss=lambda cell: np.random.normal(cell["reported_loss"], 1e5, 10_000),
+        open_claims = 0,
+        reported_claims = 0,
+        closed_with_pay_claims = 0,
+        written_premium = 0,
     )
-    plot_data = build_plot_data(test_predictions.right_edge, n_bins=10, n_samples=10)
+    plot_data = build_plot_data(test_predictions, n_bins=10, n_samples=10)
+    missing = [key for key in COMMON_METRIC_DICT if key.replace(" ", "_").lower() not in plot_data[0]]
+    assert not missing
     cell = plot_data[0]["reported_loss"]
     assert cell["samples"].size == 10
     assert len(cell["binned_pdf"]) == len(cell["binned_cdf"]) == 10
