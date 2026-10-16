@@ -129,6 +129,12 @@ where each line represents a development lag in the triangle:
 This plot can be more useful for detecting trends across
 accident years.
 
+By default, the last lag in the data is assumed the ultimate,
+but you can turn this off:
+
+.. altair-plot::
+    triangle.plot_mountain(highlight_ultimates=False)
+
 The ballistic and broom plots allow comparing paid and reported
 loss ratios directly, and the assumption that paid and reported
 losses should converge within accident periods at higher development
@@ -307,10 +313,7 @@ As an example, here's the heatmap plot for multiple slices and multiple metrics.
 .. altair-plot::
 
    (triangle.derive_metadata(ID=1) + triangle.derive_metadata(ID=2)).plot_heatmap(
-       metric_spec = {
-           "Paid LR": lambda cell: cell["paid_loss"] / cell["earned_premium"],
-           "Reported LR": lambda cell: cell["reported_loss"] / cell["earned_premium"],
-        },
+        ["Paid Loss Ratio", "Reported Loss Ratio"],
         width=250,
         height=200,
     )
@@ -443,8 +446,9 @@ titles and changing the legend positioning.
        width=150, height=100, ncols=5, 
        facet_titles=[str(period[0].year) for period in triangle_predictions.periods],
        uncertainty_type="spaghetti",
+       n_lines=50,
    ).resolve_scale(
-       x="shared", y="shared", color="independent", 
+       x="shared", y="shared"
    ).resolve_axis(
        y="shared"
    ).properties(
@@ -453,7 +457,7 @@ titles and changing the legend positioning.
        spacing=2,
    ).configure_title(
        offset=1,
-   ).interactive()
+   )
 
 
 Users can also use the ``resolve_*`` functions to change how legend and color
