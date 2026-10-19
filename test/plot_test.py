@@ -414,7 +414,7 @@ def test_build_plot_data():
         closed_with_pay_claims = 0,
         written_premium = 0,
     )
-    plot_data = build_plot_data(test_predictions, n_bins=10, n_samples=10)
+    plot_data = build_plot_data(test_predictions, n_bins=10, n_samples=10, calculate_cdf=True)
     missing = [key for key in COMMON_METRIC_DICT if key.replace(" ", "_").lower() not in plot_data[0]]
     assert not missing
     cell = plot_data[0]["reported_loss"]
