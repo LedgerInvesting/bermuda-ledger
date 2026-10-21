@@ -7,11 +7,11 @@ name = "bermuda-ledger"
 description = "A module for manipulating insurance loss triangles"
 authors = [ { name = "Korra" } ]
 readme = "README.rst"
-requires-python = ">3.10"
+requires-python = ">=3.14"
 dynamic = ["version", "optional-dependencies"]
 dependencies = [
     "awswrangler",
-    "numpy>1.23.1,<2",
+    "numpy",
     "pandas>1.4.1",
     "altair==6.1.0",
     "babel",
@@ -81,7 +81,7 @@ exclude = [
 ]
 line-length = 88
 indent-width = 4
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.

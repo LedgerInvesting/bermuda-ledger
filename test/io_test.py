@@ -268,7 +268,7 @@ def test_missing_value_load():
     meyers_wide_df = pd.read_csv(
         "test/test_data/meyers_wide.csv", parse_dates=INDEX_CUM_COLUMNS
     )
-    meyers_wide_df.loc[0, "earned_premium"] = np.NaN
+    meyers_wide_df.loc[0, "earned_premium"] = np.nan
     meyers_tri_from_wide = wide_data_frame_to_triangle(
         meyers_wide_df, field_cols=["earned_premium", "reported_loss", "paid_loss"]
     )
