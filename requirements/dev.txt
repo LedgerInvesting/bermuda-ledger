@@ -13,7 +13,7 @@ build==1.6.1
     # via pip-tools
 cachebox==5.2.3
     # via deepdiff
-certifi==2026.7.22
+certifi==2026.10.18
     # via requests
 cffi==2.1.1
     # via cryptography
@@ -39,9 +39,9 @@ defusedxml==0.7.1
     # via -r requirements/dev.in
 dill==0.4.1
     # via chainladder
-distlib==0.4.3
+distlib==0.4.4
     # via virtualenv
-filelock==4.2.0
+filelock==4.2.4
     # via
     #   python-discovery
     #   virtualenv
@@ -107,13 +107,13 @@ pandas==2.3.3
     # via chainladder
 patsy==1.0.3
     # via chainladder
-pillow==12.3.0
+pillow==13.0.0
     # via matplotlib
 pip==26.2.1
     # via pip-tools
 pip-tools==7.6.2
     # via -r requirements/dev.in
-platformdirs==4.13.3
+platformdirs==4.13.5
     # via virtualenv
 pluggy==1.7.0
     # via pytest
@@ -136,7 +136,7 @@ python-dateutil==2.9.0.post0
     #   botocore
     #   matplotlib
     #   pandas
-python-discovery==1.6.3
+python-discovery==1.6.4
     # via virtualenv
 pytz==2026.5
     # via pandas
@@ -179,7 +179,7 @@ urllib3==2.8.0
     #   botocore
     #   requests
     #   responses
-virtualenv==21.14.8
+virtualenv==21.14.11
     # via pre-commit
 werkzeug==3.1.9
     # via moto

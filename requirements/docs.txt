@@ -16,7 +16,7 @@ beautifulsoup4==4.15.0
     # via nbconvert
 bleach==6.4.0
     # via nbconvert
-certifi==2026.7.22
+certifi==2026.10.18
     # via requests
 charset-normalizer==3.5.2
     # via requests
@@ -65,7 +65,7 @@ markupsafe==3.0.4
     # via
     #   jinja2
     #   nbconvert
-mistune==3.3.4
+mistune==3.4.0
     # via nbconvert
 narwhals==2.27.1
     # via altair
@@ -87,7 +87,7 @@ packaging==26.3
     #   sphinx
 pandocfilters==1.5.1
     # via nbconvert
-platformdirs==4.13.3
+platformdirs==4.13.5
     # via jupyter-core
 pockets==0.9.1
     # via sphinxcontrib-napoleon
