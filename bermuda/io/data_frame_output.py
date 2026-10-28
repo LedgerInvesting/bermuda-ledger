@@ -126,7 +126,7 @@ def _cell_to_long_dict(cell: Cell, metadata_names: list[str]) -> list[dict[str, 
         {
             **base_dict,
             **metadata_dict,
-            "scenario": np.NaN if field in constant_fields else ndx + 1,
+            "scenario": np.nan if field in constant_fields else ndx + 1,
             "field": field,
             "value": float(value),
         }

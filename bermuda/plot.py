@@ -133,14 +133,18 @@ class FieldSummary(object):
 
     @classmethod
     def from_metric(
-        cls, name: str, metric: np.ndarray, keep_samples: bool = False, n_bins: int = 40, n_samples: int = 100,
+        cls, name: str, metric: np.ndarray, keep_samples: bool = False, n_bins: int = 40, n_samples: int = 100, calculate_cdf: bool = False,
     ) -> FieldSummary:
-        freq, bin_edges = np.histogram(metric, bins=n_bins, density=True)
-        if any(np.isnan(freq)) or any(np.isinf(freq)):
-            freq = np.array([0 if np.isnan(f) or np.isinf(f) else 0 for f in freq])
-        cumulative = np.cumsum(freq * np.diff(bin_edges))
-        binned_pdf = {(left, right): f for left, right, f in zip(bin_edges[:-1], bin_edges[1:], freq)}
-        binned_cdf = {p: q for p, q in zip(bin_edges[1:], cumulative)} 
+        if calculate_cdf:
+            freq, bin_edges = np.histogram(metric, bins=n_bins, density=True)
+            if any(np.isnan(freq)) or any(np.isinf(freq)):
+                freq = np.array([0 if np.isnan(f) or np.isinf(f) else 0 for f in freq])
+            cumulative = np.cumsum(freq * np.diff(bin_edges))
+            binned_pdf = {(left, right): f for left, right, f in zip(bin_edges[:-1], bin_edges[1:], freq)}
+            binned_cdf = {p: q for p, q in zip(bin_edges[1:], cumulative)} 
+        else:
+            binned_pdf = None
+            binned_cdf = None
         
         if isinstance(metric, np.ndarray):
             # we always use the same random state instance to preserve samples
@@ -246,6 +250,7 @@ def build_plot_data(
     keep_samples: bool = False,
     n_bins: int = 40,
     n_samples: int = 100,
+    calculate_cdf: bool = False,
 ) -> list[dict[str, Any]]:
     """Convenience function for building plot data.
 
@@ -285,7 +290,7 @@ def build_plot_data(
     field_summaries = {
         cell: {
             _to_snake_case(name): _calculate_field_summary(
-                cell, prev_cell, next_cell, metric, name, n_bins=n_bins, n_samples=n_samples, keep_samples=keep_samples
+                cell, prev_cell, next_cell, metric, name, n_bins=n_bins, n_samples=n_samples, keep_samples=keep_samples, calculate_cdf=calculate_cdf,
             ).dict(remove_empties, unit_lookup.get(name, ""))
             for name, metric in (metric_dict or COMMON_METRIC_DICT).items()
         }
@@ -511,7 +516,7 @@ def _plot_right_edge(
                 ).title("Loss Ratio %"),
                 color=alt.Color(f"{snake_name}.field:N").legend(title=None),
             )
-        ).interactive()
+        )
 
         points += (
             alt.Chart(data)
@@ -540,12 +545,12 @@ def _plot_right_edge(
             )
         )
 
-    fig = alt.layer(bar, loss_error + lines + points).resolve_scale(
+    fig = alt.layer(bar, loss_error + lines + points.interactive()).resolve_scale(
         y="independent",
         color="independent",
     )
 
-    return fig.interactive()
+    return fig
 
 
 def plot_data_completeness(
@@ -589,7 +594,7 @@ def _plot_data_completeness(
 
     currency = _currency_symbol(triangle)
 
-    selection = alt.selection_point()
+    selection = alt.selection_point(name=f"{triangle.metadata}")
 
     data = alt.Data(values=build_plot_data(triangle))
 
@@ -621,9 +626,13 @@ def _plot_data_completeness(
             ],
         )
         .add_params(selection)
+    ).add_params(
+        alt.selection_interval(
+            name=f"zoom-{triangle.metadata}", bind="scales", encodings=["x", "y"]
+        ),
     )
 
-    return fig.interactive()
+    return fig
 
 
 def plot_heatmap(
@@ -681,7 +690,7 @@ def _plot_heatmap(
         ),
     )
 
-    selection = alt.selection_interval()
+    selection = alt.selection_interval(name=f"{name}: {triangle.metadata}")
     heatmap = (
         base.mark_rect()
         .encode(
@@ -788,7 +797,11 @@ def _plot_atas(
         opacity=alt.value(0.7),
     )
 
-    return (points + errors + boxplot).interactive()
+    return (points + errors + boxplot).add_params(
+        alt.selection_interval(
+            name=f"zoom-{name}-{triangle.metadata}", bind="scales", encodings=["x", "y"]
+        ),
+    )
 
 
 def plot_growth_curve(
@@ -848,6 +861,7 @@ def _plot_growth_curve(
     snake_name = _to_snake_case(name)
 
     if uncertainty_type == "spaghetti":
+        n_lines = min(n_lines, triangle.num_samples)
         triangle_thinned = triangle.thin(num_samples=n_lines)
         data = alt.Data(
             values=build_plot_data(
@@ -865,7 +879,7 @@ def _plot_growth_curve(
     )
     color_none = color.legend(None)
 
-    selector = alt.selection_point(fields=["period_start"])
+    selector = alt.selection_point(name=f"{name}-{triangle.metadata}", fields=["period_start"])
     color_conditional = alt.when(selector).then(color).otherwise(alt.value("lightgray"))
     color_conditional_no_legend = (
         alt.when(selector).then(color_none).otherwise(alt.value("lightgray"))
@@ -952,7 +966,11 @@ def _plot_growth_curve(
     return (
         alt.layer(errors + lines + points, ultimates.add_params(selector))
         .resolve_scale(color=scale_color)
-        .interactive()
+        .add_params(
+            alt.selection_interval(
+                name=f"zoom-{name}-{triangle.metadata}", bind="scales", encodings=["x", "y"]
+            ),
+        )
     )
 
 
@@ -1788,6 +1806,7 @@ def _calculate_field_summary(
     keep_samples: bool = False,
     n_bins: int = 40,
     n_samples: int = 100,
+    calculate_cdf: bool = False,
 ) -> FieldSummary:
     metric = _safe_apply_metric(cell, prev_cell, next_cell, func)
 
@@ -1798,7 +1817,7 @@ def _calculate_field_summary(
         warn(f"Metric samples for {name} in {cell.metadata, cell.coordinates} are all equal. Building plot data as if it is a constant.")
         return FieldSummary(name, metric, seed=SEED)
 
-    return FieldSummary.from_metric(name, metric, keep_samples=keep_samples, n_bins=n_bins, n_samples=n_samples)
+    return FieldSummary.from_metric(name, metric, keep_samples=keep_samples, n_bins=n_bins, n_samples=n_samples, calculate_cdf=calculate_cdf)
 
 
 def _safe_apply_metric(cell: Cell, prev_cell: Cell | None, next_cell: Cell | None, func: MetricFunc):

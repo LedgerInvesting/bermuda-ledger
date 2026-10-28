@@ -5,4 +5,5 @@ sphinx-copybutton
 nbsphinx
 recommonmark
 sphinx-wagtail-theme
+altair==6.1.0
 sphinxext-altair
