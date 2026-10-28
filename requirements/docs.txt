@@ -16,7 +16,7 @@ beautifulsoup4==4.15.0
     # via nbconvert
 bleach==6.4.0
     # via nbconvert
-certifi==2026.10.19
+certifi==2026.10.23
     # via requests
 charset-normalizer==3.5.2
     # via requests
@@ -67,7 +67,7 @@ markupsafe==3.0.4
     #   nbconvert
 mistune==3.4.0
     # via nbconvert
-narwhals==2.27.1
+narwhals==2.28.0
     # via altair
 nbclient==0.11.0
     # via nbconvert
@@ -87,7 +87,7 @@ packaging==26.3
     #   sphinx
 pandocfilters==1.5.1
     # via nbconvert
-platformdirs==4.13.5
+platformdirs==4.13.7
     # via jupyter-core
 pockets==0.9.1
     # via sphinxcontrib-napoleon
@@ -95,7 +95,7 @@ pygments==2.21.0
     # via
     #   nbconvert
     #   sphinx
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
     # via jupyter-client
 pyzmq==27.2.0
     # via jupyter-client
@@ -120,7 +120,7 @@ six==1.17.0
     #   sphinxcontrib-napoleon
 snowballstemmer==3.1.1
     # via sphinx
-soupsieve==3.0.3
+soupsieve==3.0.4
     # via beautifulsoup4
 sphinx==9.2.0
     # via
@@ -155,7 +155,7 @@ sphinxext-altair==0.2.0
     # via -r requirements/docs.in
 tinycss2==1.5.1
     # via bleach
-tornado==6.5.10
+tornado==6.6
     # via jupyter-client
 traitlets==5.16.1
     # via
@@ -170,6 +170,8 @@ typing-extensions==4.16.0
     #   altair
     #   beautifulsoup4
     #   jupyter-client
+tzdata==2026.6
+    # via python-dateutil
 urllib3==2.8.0
     # via requests
 webencodings==0.6.1
