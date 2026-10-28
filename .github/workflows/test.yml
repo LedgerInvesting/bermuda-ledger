@@ -32,8 +32,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python3 -m pip install '.[dev]'
-          python3 -m pip install .
+          python3 -m pip install -v '.[dev]'
+          python3 -m pip install -v .
 
       - name: Test
         run: pytest test
