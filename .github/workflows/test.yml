@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - with:
+        with:
           ref: main
 
       - name: Install Python3
